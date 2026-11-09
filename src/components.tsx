@@ -126,7 +126,8 @@ const AlertBlock = ({ style, type, message, description, children }: AntdControl
       | "info"
       | "warning"
       | "error"}
-    message={str(message) || (typeof children === "string" ? children : undefined) || undefined}
+    // antd 6 起 Alert 的 message 已弃用，改用 title（同时兼容 Schema 里旧写法）
+    title={str(message) || (typeof children === "string" ? children : undefined) || undefined}
     description={str(description) || undefined}
   />
 );
@@ -137,9 +138,18 @@ const Link = ({ children, style, href, target }: AntdControlProps) => (
   </Typography.Link>
 );
 
-const Picture = ({ style, src, alt, width, height }: AntdControlProps) => (
-  <Image src={str(src)} alt={str(alt)} width={num(width)} height={num(height)} style={style} />
-);
+function Picture({ style, src, alt, width, height }: AntdControlProps) {
+  const url = str(src);
+  // 空 src 会让浏览器把当前页再请求一遍（antd/浏览器都会警告），空值时只给占位
+  if (!url) {
+    return (
+      <div className="antd-image-placeholder" style={{ ...style, width: num(width) ?? 96, height: num(height) ?? 64 }}>
+        {str(alt) || "图片"}
+      </div>
+    );
+  }
+  return <Image src={url} alt={str(alt)} width={num(width)} height={num(height)} style={style} />;
+}
 
 interface ColumnItem {
   label: string;
@@ -169,14 +179,19 @@ function columnsOf(raw: unknown): ColumnItem[] {
 const TableBlock = ({ style, columns, data, rows, emptyText }: AntdControlProps) => {
   const cols = columnsOf(columns).map((item) => ({ title: item.label, dataIndex: item.prop, key: item.prop }));
   const list = Array.isArray(data) ? data : Array.isArray(rows) ? rows : [];
+  // antd 6 弃用了 rowKey 回调的 index 参数；这里用数据行自带的稳定 key
+  const dataSource = (list as Record<string, unknown>[]).map((row, index) => ({
+    ...row,
+    __rowKey: typeof row === "object" && row !== null ? String((row as Record<string, unknown>).key ?? index) : String(index),
+  }));
   return (
     <Table
       style={style}
       size="small"
       pagination={false}
       columns={cols}
-      dataSource={list as Record<string, unknown>[]}
-      rowKey={(_record, index) => String(index)}
+      dataSource={dataSource}
+      rowKey="__rowKey"
       locale={{ emptyText: str(emptyText) || "暂无数据" }}
     />
   );
