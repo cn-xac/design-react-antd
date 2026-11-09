@@ -1,117 +1,96 @@
 /**
- * 完整 React 实例：一个适配包，两个引擎能力。
+ * 完整 React 实例：一个适配包，两个引擎能力，一个自检面板。
  *
- * - 「设计器」页：SchemaDesigner 用 antdAdapter，属性面板/顶栏/物料面板全部是 antd 组件；
- * - 「渲染器」页：SchemaRenderer 消费同一份 PageSchema，只做「用组件渲染 + 导出数据 + 派发事件」。
+ * - 「设计器」：SchemaDesigner 用 antdAdapter，属性面板/顶栏/物料面板全是 antd 组件；
+ * - 「渲染器」：SchemaRenderer 消费同一份 PageSchema，只做「用组件渲染 + 导出数据 + 派发事件」；
+ * - 「适配包清单」：可视化本包注册了哪些组件与配置，印证架构分层。
  *
- * 两页通过内存仓储共享 Schema：设计器保存后，渲染器重新读取，直观看到
- * 「设计时搭的 Schema → 运行时画出真实表单」这条链路。
+ * 设计器与渲染器通过内存仓储共享 Schema：设计器保存后渲染器重新读取，
+ * 直观看到「设计时搭的 Schema → 运行时画出真实表单」这条链路。
  */
-import { useCallback, useMemo, useState } from "react";
-import { createRef } from "react";
-import { Segmented, Typography } from "antd";
-import { createMemoryRepository, createEmptyPage } from "@x-ac/design-core";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Segmented, Typography, Button, Empty } from "antd";
+import { createMemoryRepository } from "@x-ac/design-core";
 import type { PageSchema, UiEventPayload } from "@x-ac/design-core";
 import { ReactDesignProvider, SchemaRenderer } from "@x-ac/design-react";
 import type { SchemaRendererHandle } from "@x-ac/design-react";
 import { SchemaDesigner } from "@x-ac/design-react/designer";
 import { antdAdapter, AntdConfigProvider } from "@x-ac/design-react-antd";
+import { PAGE_ID, seedPage, seedData } from "./schema";
+import { AdapterPanel } from "./AdapterPanel";
 
-const PAGE_ID = "demo";
+type TabKey = "designer" | "runtime" | "adapter";
 
-/** 预置页面：覆盖自动绑定、常用字段、子表单（明细数组）、动作按钮 */
-function seedPage(): PageSchema {
-  return {
-    ...createEmptyPage("Ant Design 适配层示例"),
-    id: PAGE_ID,
-    state: {},
-    children: [
-      {
-        id: "n_title",
-        component: "title",
-        props: { text: "员工信息登记", level: 3 },
-      },
-      {
-        id: "n_name",
-        component: "input",
-        props: { label: "姓名", placeholder: "请输入姓名", required: true },
-      },
-      {
-        id: "n_dept",
-        component: "select",
-        props: { label: "部门", options: "技术中心,产品中心,设计中心", placeholder: "请选择部门" },
-      },
-      {
-        id: "n_count",
-        component: "number",
-        props: { label: "司龄", min: 0, max: 50, precision: 0 },
-      },
-      {
-        id: "n_join",
-        component: "date",
-        props: { label: "入职日期", valueFormat: "YYYY-MM-DD" },
-      },
-      {
-        id: "n_remote",
-        component: "switch",
-        props: { label: "远程办公", activeText: "是", inactiveText: "否" },
-      },
-      {
-        id: "n_level",
-        component: "segmented",
-        props: { label: "职级", options: "P4,P5,P6,P7" },
-      },
-      {
-        id: "members",
-        component: "ec-subform",
-        props: { label: "项目成员", itemPath: "members", addText: "添加成员" },
-        children: [
-          { id: "m_name", component: "input", props: { label: "成员姓名" } },
-          { id: "m_role", component: "select", props: { label: "角色", options: "开发,设计,测试,产品" } },
-        ],
-      },
-      {
-        id: "n_submit",
-        component: "button",
-        props: { label: "提交", type: "primary" },
-        events: { click: [{ type: "submitForm" }] },
-      },
-    ] as PageSchema["children"],
-  };
+interface EventLine {
+  kind: "hook" | "notify" | "submit" | "blocked";
+  text: string;
 }
-
-const seedData = {
-  form: {
-    n_name: "张三",
-    n_dept: "技术中心",
-    n_count: 3,
-    n_join: "2024-03-01",
-    n_remote: true,
-    n_level: "P5",
-    members: [{ m_name: "李四", m_role: "开发" }],
-  },
-};
-
-type TabKey = "designer" | "runtime";
 
 export default function App() {
   const [tab, setTab] = useState<TabKey>("designer");
   const [schema, setSchema] = useState<PageSchema>(seedPage);
-  const [events, setEvents] = useState<string[]>([]);
+  const [liveData, setLiveData] = useState<Record<string, unknown>>(seedData);
+  const [events, setEvents] = useState<EventLine[]>([]);
   const [submitted, setSubmitted] = useState<unknown>(null);
-  const rendererRef = createRef<SchemaRendererHandle>();
+  // 用 useRef 持有命令式句柄，避免 createRef 在每次 render 重建导致 getData() 读不到
+  const rendererRef = useRef<SchemaRendererHandle>(null);
 
   const repository = useMemo(() => createMemoryRepository([seedPage()]), []);
 
-  /** 设计器保存后，把最新 Schema 交给渲染器 */
+  /** 设计器保存 / 导出 Schema 后，把最新 Schema 交给渲染器 */
   const reloadSchema = useCallback(() => {
     const record = repository.get(PAGE_ID);
     if (record) setSchema(JSON.parse(JSON.stringify(record)) as PageSchema);
   }, [repository]);
 
-  const onNodeEvent = useCallback((payload: UiEventPayload) => {
-    setEvents((list) => [`${payload.name} · ${payload.nodeId}`, ...list].slice(0, 8));
+  const pushEvent = useCallback((line: EventLine) => {
+    setEvents((list) => [line, ...list].slice(0, 10));
   }, []);
+
+  /** 拦截钩子：可阻断预设动作；这里演示对「重置表单」按钮做二次拦截记录 */
+  const onEvent = useCallback(
+    (payload: UiEventPayload) => {
+      pushEvent({
+        kind: "hook",
+        text: `onEvent 拦截 · ${payload.name} · ${payload.nodeId} · 动作 ${payload.actions.map((a) => a.action).join(",") || "无"}`,
+      });
+      // 返回 undefined 表示放行；返回 false 或 payload.preventDefault() 可阻断
+    },
+    [pushEvent],
+  );
+
+  /** 只读通知：即使被 preventDefault 也会收到，适合埋点 / 状态镜像 */
+  const onNodeEvent = useCallback(
+    (payload: UiEventPayload) => {
+      pushEvent({
+        kind: "notify",
+        text: `onNodeEvent 通知 · ${payload.name} · ${payload.nodeId} · value=${String(payload.value ?? "")}`,
+      });
+    },
+    [pushEvent],
+  );
+
+  /** onDataChange：scope 每次变化的深拷贝，驱动右侧实时数据面板 */
+  const onDataChange = useCallback((data: Record<string, unknown>) => {
+    setLiveData(data);
+    pushEvent({ kind: "notify", text: "onDataChange · scope 已更新" });
+  }, [pushEvent]);
+
+  const onSubmit = useCallback(
+    (payload: Record<string, unknown>) => {
+      setSubmitted(payload);
+      pushEvent({ kind: "submit", text: `onSubmit 回调 · 收到 ${Object.keys(payload).length} 个字段` });
+    },
+    [pushEvent],
+  );
+
+  const exportNow = () => {
+    const result = rendererRef.current?.getData({ validate: false });
+    if (result) {
+      setLiveData(result.data);
+      pushEvent({ kind: "hook", text: "手动调用 ref.getData()" });
+    }
+  };
 
   return (
     <AntdConfigProvider>
@@ -121,7 +100,7 @@ export default function App() {
             @x-ac/design-react-antd
           </Typography.Title>
           <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            vue/react 引擎只提供架构；适配包注册组件与组件配置，引擎整合成设计器与渲染器。
+            引擎只提供架构；适配包注册组件与组件配置，引擎整合成设计器与渲染器。
             属性设置面板用的也是这里注册的 Ant Design 组件。
           </Typography.Paragraph>
           <Segmented
@@ -130,6 +109,7 @@ export default function App() {
             options={[
               { label: "设计器（搭建 Schema）", value: "designer" },
               { label: "渲染器（消费 Schema）", value: "runtime" },
+              { label: "适配包清单", value: "adapter" },
             ]}
             onChange={(value) => setTab(value as TabKey)}
           />
@@ -138,7 +118,8 @@ export default function App() {
         {tab === "designer" ? (
           <section className="demo__panel demo__panel--designer">
             <div className="demo__tip">
-              左侧拖入物料 → 右侧属性面板（antd 输入框/下拉/开关）配置 → 点顶栏「保存」，再切到渲染器查看效果。
+              左侧拖入物料 → 右侧属性面板（antd 输入框 / 下拉 / 开关 / 取色）配置 → 点顶栏「保存」，再切到渲染器查看效果。
+              预置 Schema 已覆盖全部协议物料与两级嵌套子表单。
             </div>
             <div className="demo__designer">
               <ReactDesignProvider adapter={antdAdapter}>
@@ -151,7 +132,7 @@ export default function App() {
               </ReactDesignProvider>
             </div>
           </section>
-        ) : (
+        ) : tab === "runtime" ? (
           <section className="demo__panel demo__panel--runtime">
             <div className="demo__runtime">
               <ReactDesignProvider adapter={antdAdapter}>
@@ -159,25 +140,54 @@ export default function App() {
                   ref={rendererRef}
                   page={schema}
                   data={seedData}
+                  onDataChange={onDataChange}
                   onNodeEvent={onNodeEvent}
-                  onSubmit={(payload) => setSubmitted(payload)}
+                  onEvent={onEvent}
+                  onSubmit={onSubmit}
                 />
               </ReactDesignProvider>
             </div>
             <aside className="demo__side">
-              <Typography.Title level={5}>导出数据</Typography.Title>
-              <pre className="demo__code">{JSON.stringify(submitted ?? rendererRef.current?.getData().data ?? {}, null, 2)}</pre>
-              <Typography.Title level={5}>事件派发（最近 8 条）</Typography.Title>
+              <div className="demo__side-head">
+                <Typography.Title level={5} style={{ margin: 0 }}>
+                  实时 scope / 导出数据
+                </Typography.Title>
+                <Button size="small" onClick={exportNow}>
+                  导出
+                </Button>
+              </div>
+              <pre className="demo__code">{JSON.stringify(liveData, null, 2)}</pre>
+
+              {submitted ? (
+                <>
+                  <Typography.Title level={5}>最近一次提交</Typography.Title>
+                  <pre className="demo__code">{JSON.stringify(submitted, null, 2)}</pre>
+                </>
+              ) : null}
+
+              <Typography.Title level={5}>事件派发（最近 10 条）</Typography.Title>
               {events.length ? (
                 <ul className="demo__events">
                   {events.map((item, index) => (
-                    <li key={`${item}-${index}`}>{item}</li>
+                    <li key={`${item.text}-${index}`} data-kind={item.kind}>
+                      <span className="demo__event-kind">{item.kind}</span> {item.text}
+                    </li>
                   ))}
                 </ul>
               ) : (
-                <Typography.Text type="secondary">修改字段或点击按钮后会在这里出现</Typography.Text>
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="修改字段或点击按钮后会在这里出现" />
               )}
+              <Typography.Paragraph type="secondary" style={{ fontSize: 11 }}>
+                说明：onEvent 可阻断动作，onNodeEvent 是只读通知；动作（toast / setState / resetForm /
+                submitForm）由 core 执行，宿主能力（消息 / 确认框）由本适配包提供。
+              </Typography.Paragraph>
             </aside>
+          </section>
+        ) : (
+          <section className="demo__panel demo__panel--adapter">
+            <div className="demo__runtime">
+              <AdapterPanel />
+            </div>
           </section>
         )}
       </main>

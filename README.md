@@ -61,16 +61,24 @@ export function App() {
 
 ## 本包自包含的完整示例
 
-`example/` 是完整 React 实例，双页演示：
+`example/` 是完整 React 实例，三个页签：
 
-- **设计器**：拖拽搭建 Schema，属性面板用 antd 控件配置；
-- **渲染器**：消费同一份 Schema，展示数据导出与事件派发。
+- **设计器**：拖拽搭建 Schema，属性面板（输入框 / 下拉 / 开关 / 取色）用 antd 控件配置；
+- **渲染器**：消费同一份 Schema，实时展示 scope、事件派发与提交结果；
+- **适配包清单**：可视化本包注册了哪些组件、物料、designer kit 槽位，
+  以及 `missingComponents(antdAdapter)` 为空（设计器面板无置灰项），直观印证架构分层。
+
+预置 Schema（`example/src/schema.ts`）覆盖 **core 全部 27 个协议物料 + 3 个 antd 专有物料**，
+含两级嵌套子表单（订单 → 商品明细）、按组件ID自动绑定、必填校验，以及
+`toast` / `setState` / `confirm` / `resetForm` / `submitForm` 真实动作链。
+渲染器侧演示 `onEvent`（可阻断）、`onNodeEvent`（只读通知）、`onSubmit`（提交回调）、
+`onDataChange`（scope 实时回传）与 `ref.getData()` 命令式导出。
 
 ```bash
 pnpm install
 pnpm dev            # http://127.0.0.1:5176
-pnpm typecheck
-pnpm test
+pnpm typecheck      # 库 + 示例两轮 tsc
+pnpm test           # 12 个用例（适配包 + 示例 Schema 运行时冒烟）
 pnpm build          # 库产物 dist/
 pnpm build:example  # 示例站 example/dist/
 pnpm check          # 以上全部
@@ -78,6 +86,21 @@ pnpm check          # 以上全部
 
 示例通过 vite alias 直接消费 `src/` 与兄弟仓 `../project/packages/{core,react}/src` 源码，
 改完即刻生效，不依赖任何一方的 `dist`。
+
+### 构建分包
+
+`example/vite.config.ts` 按变更频率拆 chunk（总字节不变，迭代更新时只重新下载变化的 chunk）：
+
+| chunk | 内容 | 大小 (gzip) |
+| --- | --- | --- |
+| `index` | 适配包 + 示例业务代码 | 23.85 kB (8.55) |
+| `engine` | 兄弟仓 core / react 引擎源码 | 123.98 kB (39.22) |
+| `vendor-antd` | antd + @rc-component + React 运行时 | 1,256.67 kB (399.13) |
+
+> antd 的 pnpm 虚拟路径里含 `react@`，且 rolldown 会把 React 归入依赖它的 vendor chunk，
+> 因此 React 运行时随 antd 一起进 `vendor-antd`，不单独拆 `vendor-react`。
+> 若要把首屏压得更小，后续可对**非首屏的专有物料**（Cascader / ColorPicker / DatePicker 等）
+> 做动态 import，而不是继续切 vendor。
 
 ## CI / 部署
 
@@ -114,7 +137,12 @@ src/
   actions.ts      message / Modal.confirm
   app.tsx        可选的 App context 注入
   styles.css      最小补充样式
-example/          完整 React 实例（设计器 + 渲染器）
-tests/            冒烟测试
-scripts/          构建前清理 dist
+example/
+  src/App.tsx        三页签主壳（设计器 / 渲染器 / 适配包清单）
+  src/schema.ts      预置 PageSchema（全物料 + 嵌套子表单 + 动作链）与种子数据
+  src/AdapterPanel.tsx  适配包注册清单可视化
+  src/styles.css     示例布局与响应式样式
+  vite.config.ts     alias + Pages base + 分包策略
+tests/              12 个用例（适配包冒烟 + 示例 Schema 运行时冒烟）
+scripts/            构建前清理 dist
 ```

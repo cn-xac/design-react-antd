@@ -32,6 +32,24 @@ export default defineConfig({
     outDir: r("./dist"),
     emptyOutDir: true,
     chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        /**
+         * 按「变更频率」拆包，而不是盲目切成一堆小文件：
+         * - vendor-antd：antd + @rc-component + React 运行时（rolldown 会把 React 归入
+         *   依赖它的 vendor chunk，且 antd 的 pnpm 虚拟路径里也含 react@，无法干净拆分），
+         *   几乎不变，浏览器可长期缓存；
+         * - engine：兄弟仓 core / react 引擎源码，随引擎升级变化；
+         * - 入口 chunk：适配包 + 示例业务代码，改动后只失效这一部分（约 24 kB）。
+         * 总字节不变，但迭代更新时只需重新下载变化的 chunk。
+         */
+        manualChunks(id) {
+          if (id.includes("node_modules/.pnpm/antd@") || id.includes("/antd/es/") || id.includes("/@rc-component/")) return "vendor-antd";
+          if (id.includes("/project/packages/")) return "engine";
+          return undefined;
+        },
+      },
+    },
   },
   server: { port: 5176, host: "127.0.0.1" },
 });
