@@ -58,7 +58,7 @@ jobs:
           path: ext
           persist-credentials: false
 
-      - name: Checkout monorepo (resolves link: deps)
+      - name: "Checkout monorepo (resolves link: deps)"
         uses: actions/checkout@v7
         with:
           repository: cn-xac/web-desgin
