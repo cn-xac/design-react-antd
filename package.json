@@ -1,0 +1,82 @@
+{
+  "name": "@x-ac/design-react-antd",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "基于 @x-ac/design-react/kit 的 Ant Design 适配包：物料实现 + 绑定通道 + 动作副作用 + 设计器控件",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cn-xac/design-react-antd.git"
+  },
+  "packageManager": "pnpm@12.18.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "*.css",
+    "**/*.css"
+  ],
+  "keywords": [
+    "react",
+    "schema",
+    "low-code",
+    "antd",
+    "adapter"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "node scripts/clean-dist.mjs dist && vite build",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p example/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "vite --config example/vite.config.ts",
+    "build:example": "vite build --config example/vite.config.ts",
+    "preview:example": "vite preview --config example/vite.config.ts",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm build:example"
+  },
+  "peerDependencies": {
+    "@x-ac/design-core": "^1.0.0",
+    "@x-ac/design-react": "^1.0.0",
+    "antd": "^6.0.0",
+    "dayjs": "^1.11.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "@x-ac/design-core": "link:../project/packages/core",
+    "@x-ac/design-react": "link:../project/packages/react",
+    "antd": "^6.7.0",
+    "dayjs": "^1.11.23",
+    "jsdom": "^31.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.6",
+    "vite-plugin-dts": "^5.1.2",
+    "vitest": "^5.1.0"
+  }
+}
