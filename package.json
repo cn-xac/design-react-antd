@@ -52,7 +52,9 @@
     "dev": "vite --config example/vite.config.ts",
     "build:example": "vite build --config example/vite.config.ts",
     "preview:example": "vite preview --config example/vite.config.ts",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm build:example"
+    "verify:dist": "node tools/verify-dist.mjs",
+    "pages:build": "node tools/pages.mjs",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:dist && pnpm build:example && pnpm pages:build"
   },
   "peerDependencies": {
     "@x-ac/design-core": "^1.0.0",

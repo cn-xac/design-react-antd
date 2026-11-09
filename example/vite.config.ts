@@ -5,15 +5,15 @@ import react from "@vitejs/plugin-react";
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 /**
- * 示例站构建：本地 dev 走根路径，GitHub Pages 项目页按仓库名设子路径。
+ * 示例站构建：本配置始终保持 base: '/'（本地 dev / build:example 都用根路径）。
+ * GitHub Pages 项目页的 /<repo>/ 子路径由 tools/pages.mjs 用 vite build API 覆盖，
+ * 避免把部署环境判断塞进 dev 配置。alias 与分包是本文件单一事实来源，pages.mjs 复用之。
  * 本地布局 web-design/{project,design-react-antd} 与 CI 并排 checkout
  * （ext/ + project/）一致，故 ../../project 两边都能命中。
  */
-const isPages = process.env.NODE_ENV === "production";
-
 export default defineConfig({
   root: r("."),
-  base: isPages ? "/design-react-antd/" : "/",
+  base: "/",
   plugins: [react()],
   resolve: {
     dedupe: ["react", "react-dom", "antd"],
