@@ -1,0 +1,128 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f5f6f8;
+  color: #1f2329;
+}
+
+.demo {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+  padding: 16px 20px 20px;
+}
+
+.demo__head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.demo__tabs {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.demo__panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 16px;
+}
+
+.demo__tip {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  background: #e6f4ff;
+  border: 1px solid #91caff;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.demo__panel--designer {
+  flex-direction: column;
+}
+
+.demo__designer {
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.demo__runtime {
+  flex: 1;
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  padding: 20px;
+  overflow: auto;
+}
+
+.demo__side {
+  width: 340px;
+  flex: 0 0 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  padding: 16px;
+  overflow: auto;
+}
+
+.demo__code {
+  margin: 0;
+  padding: 10px;
+  background: #f7f8fa;
+  border: 1px solid #e5e6eb;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.demo__events {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* 设计器来自 @x-ac/design-react/designer 的样式表，这里补齐高度让它撑满容器 */
+.demo__designer > .designer {
+  height: 100%;
+}
+
+@media (max-width: 900px) {
+  .demo__panel--runtime {
+    flex-direction: column;
+  }
+  .demo__side {
+    width: 100%;
+    flex: 0 0 auto;
+    max-height: 40vh;
+  }
+  .demo {
+    padding: 12px;
+  }
+}

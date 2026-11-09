@@ -1,0 +1,98 @@
+# 发布工作流：@x-ac/design-react-antd → npm（可信发布 / OIDC / 免 token）
+#
+# 触发：
+#   - 推送 v* tag（如 v1.0.0）时自动发布
+#   - Actions 页面手动 workflow_dispatch 触发
+#
+# 可信发布（npm Trusted Publishing，基于 OIDC）：
+#   - 不需要 NPM_TOKEN；GitHub Actions 用 OIDC 临时凭证直接发布，
+#     并生成「Built and signed with provenance」溯源徽章。
+#   - 发布前置条件（一次性，在 npmjs.com 操作）：
+#       包设置 → Publishing access → Add a trusted publisher → GitHub Actions，
+#       填写必须与本仓库及本文件完全一致：
+#         owner          = cn-xac
+#         repository     = design-react-antd
+#         Workflow 文件名 = publish.yml
+#   - 首次发布：@x-ac/design-react-antd 尚未发过版，需先在 npm 创建/认领该包
+#     （scope 已是你的），再登记上面的 Trusted Publisher；随后即可 tokenless 发布。
+#   - 本包 package.json 已补 repository 字段（provenance 生成必需）。
+#
+# 技术约束（与 cn-xac/web-desgin、design-vue-element-plus 的 publish.yml 一致）：
+#   - OIDC 要求 npm >= 11.5.1 → 用 node-version: 24。
+#   - setup-node 不写 registry-url（避免 .npmrc 与 OIDC 冲突）。
+#   - 已声明 id-token: write（见 permissions），运行于官方 runner。
+#   - 本包 devDependencies 通过 link:../project/packages/{core,react} 指向
+#     cn-xac/web-desgin 源码，故 CI 需把该 monorepo 作为同级目录 checkout，
+#     才能解析 link 依赖并完成构建（与本地开发行为一致）。
+#     → 因此本仓库自身 checkout 到 ext/，monorepo checkout 到 project/，
+#       使 ext/../project 恰好命中 link 路径。
+#
+# 本工作流只负责「安装 + 类型检查 + 测试 + 构建 + 发布」，不建 tag、不 push。
+# tag 由开发者本地按约定执行：git tag -s v1.0.0 -m "release 1.0.0" 后推送。
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: ext
+
+jobs:
+  publish:
+    name: Build, test and publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout extension package
+        uses: actions/checkout@v4
+        with:
+          path: ext
+
+      - name: Checkout monorepo (resolves link: deps to @x-ac/design-core / design-react)
+        uses: actions/checkout@v4
+        with:
+          repository: cn-xac/web-desgin
+          path: project
+          # 若 web-desgin 为私有仓库，需改用 PAT：
+          # token: ${{ secrets.CI_MONOREPO_PAT }}
+
+      # 两个仓库都 checkout 到子目录，workspace 根没有 package.json；
+      # 显式指向 ext/package.json 读取 packageManager，否则 action-setup 会报缺 version。
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ext/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: ext/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build library
+        run: pnpm build
+
+      # tokenless OIDC：不配置 NPM_TOKEN，靠 id-token: write + --provenance 完成发布与溯源证明。
+      # --no-git-checks：因同级 checkout 的 project/ 在本仓视角属未跟踪目录，跳过 working-tree 校验。
+      - name: Publish to npm (trusted publishing, no token)
+        run: pnpm publish --access public --no-git-checks --provenance

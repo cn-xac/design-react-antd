@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node", "react", "react-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@x-ac/design-react-antd": ["../src/index.tsx"],
+      "@x-ac/design-core": ["../../project/packages/core/src/index.ts"],
+      "@x-ac/design-react/kit": ["../../project/packages/react/src/kit.ts"],
+      "@x-ac/design-react/designer": ["../../project/packages/react/src/designer.ts"],
+      "@x-ac/design-react": ["../../project/packages/react/src/index.ts"],
+      "react": ["../node_modules/@types/react"],
+      "react-dom": ["../node_modules/@types/react-dom"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

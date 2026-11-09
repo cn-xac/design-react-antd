@@ -1,0 +1,106 @@
+# GitHub Pages 部署工作流（本包自带完整示例站）
+#
+# 触发：
+#   - 推送 main 分支，且 src / example / 工作流 / 锁文件有改动时自动部署；
+#   - 也支持在 Actions 页面手动 workflow_dispatch 触发。
+#
+# 部署内容：example/ 的完整 React 实例（设计器 + 渲染器双页），
+# 站点地址 https://cn-xac.github.io/design-react-antd/
+# （vite base 在 NODE_ENV=production 时自动取 /design-react-antd/，与仓库名一致）。
+#
+# 前置（一次性，在 GitHub 仓库 Settings → Pages 操作）：
+#   Source = GitHub Actions。
+#
+# 与 publish.yml 一样，本包 devDependencies 用 link:../project/packages/{core,react}
+# 指向 cn-xac/web-desgin 源码，故 CI 需把该 monorepo 作为同级目录 checkout。
+# 本仓库 → ext/，monorepo → project/，使 ext/../project 恰好命中 link 路径。
+# example/vite.config.ts 的 alias 也按同样的相对层级写，本地与 CI 完全一致。
+#
+# 注意：本工作流只构建示例，不构建发布用的库产物，也不发布 npm。
+
+name: Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "example/**"
+      - ".github/workflows/pages.yml"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: ext
+
+jobs:
+  build:
+    name: Build example site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout extension package
+        uses: actions/checkout@v4
+        with:
+          path: ext
+
+      - name: Checkout monorepo (resolves link: deps)
+        uses: actions/checkout@v4
+        with:
+          repository: cn-xac/web-desgin
+          path: project
+          # 若 web-desgin 为私有仓库，需改用 PAT：
+          # token: ${{ secrets.CI_MONOREPO_PAT }}
+
+      # 两个仓库都 checkout 到子目录，workspace 根没有 package.json；
+      # 显式指向 ext/package.json 读取 packageManager，否则 action-setup 会报缺 version。
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ext/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: ext/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build example
+        run: pnpm build:example
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ext/example/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
