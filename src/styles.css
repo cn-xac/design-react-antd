@@ -1,0 +1,14 @@
+/* 适配层自带的最小样式：只补引擎样式表未覆盖的布局细节，不覆盖 antd 主题。 */
+.antd-card,
+.antd-container {
+  box-sizing: border-box;
+}
+
+.antd-grid > * {
+  min-width: 0;
+}
+
+.antd-card__head {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
