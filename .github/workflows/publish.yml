@@ -1,33 +1,29 @@
 # 发布工作流：@x-ac/design-react-antd → npm（可信发布 / OIDC / 免 token）
 #
 # 触发：
-#   - 推送 v* tag（如 v1.0.0）时自动发布
-#   - Actions 页面手动 workflow_dispatch 触发
+#   - 推送 v* tag（如 v1.0.0）即发布；
+#   - 手动 workflow_dispatch 默认 dry_run=true —— 只跑全套门禁 + `publish --dry-run`
+#     （除上传 registry 外做尽一切），用来验证工作流本身；要真发版必须显式勾掉 dry_run。
+#     tag 触发不受影响：非 dispatch 事件下 inputs.dry_run 为 null → 真 Publish 照跑。
+#
+# 参考 cn-xac/regex 的 .github/workflows/publish.yml 门禁模式，按本仓布局调整：
+#   - 本包是独立适配包，devDependencies 用 link:../project/packages/{core,react}
+#     指向 cn-xac/web-desgin 源码，故 CI 需把该 monorepo 作为同级目录 checkout。
+#     本仓库 → ext/，monorepo → project/，使 ext/../project 恰好命中 link 路径。
+#     因此所有 run 步骤的 working-directory 都是 ext/，缓存/包管理路径都带 ext/ 前缀。
 #
 # 可信发布（npm Trusted Publishing，基于 OIDC）：
-#   - 不需要 NPM_TOKEN；GitHub Actions 用 OIDC 临时凭证直接发布，
-#     并生成「Built and signed with provenance」溯源徽章。
-#   - 发布前置条件（一次性，在 npmjs.com 操作）：
-#       包设置 → Publishing access → Add a trusted publisher → GitHub Actions，
-#       填写必须与本仓库及本文件完全一致：
-#         owner          = cn-xac
-#         repository     = design-react-antd
-#         Workflow 文件名 = publish.yml
-#   - 首次发布：@x-ac/design-react-antd 尚未发过版，需先在 npm 创建/认领该包
-#     （scope 已是你的），再登记上面的 Trusted Publisher；随后即可 tokenless 发布。
-#   - 本包 package.json 已补 repository 字段（provenance 生成必需）。
+#   - 不需要任何 npm secret；GitHub Actions 用 OIDC 临时凭证发布并生成 provenance。
+#   - registry-url 仅写入指向 npmjs 的 .npmrc（不设 NODE_AUTH_TOKEN → 纯 OIDC）。
+#   - npm OIDC 要求 npm >= 11.5.1 → node-version: 24。
+#   - 首次发布：可信发布者只能绑定到**已存在的包**，首版必须先手工种一个占位版本
+#     （如 0.0.0），再在 npmjs 登记 Trusted Publisher；之后正式版本由本工作流接管。
+#   - 登记信息必须与本文件完全一致：
+#       owner = cn-xac / repository = design-react-antd / Workflow = publish.yml
+#     Environment 见下方 `environment: npm`，需与 npmjs 登记的名称、以及
+#     GitHub 仓库 Settings → Environments 里的同名环境一致。
 #
-# 技术约束（与 cn-xac/web-desgin、design-vue-element-plus 的 publish.yml 一致）：
-#   - OIDC 要求 npm >= 11.5.1 → 用 node-version: 24。
-#   - setup-node 不写 registry-url（避免 .npmrc 与 OIDC 冲突）。
-#   - 已声明 id-token: write（见 permissions），运行于官方 runner。
-#   - 本包 devDependencies 通过 link:../project/packages/{core,react} 指向
-#     cn-xac/web-desgin 源码，故 CI 需把该 monorepo 作为同级目录 checkout，
-#     才能解析 link 依赖并完成构建（与本地开发行为一致）。
-#     → 因此本仓库自身 checkout 到 ext/，monorepo checkout 到 project/，
-#       使 ext/../project 恰好命中 link 路径。
-#
-# 本工作流只负责「安装 + 类型检查 + 测试 + 构建 + 发布」，不建 tag、不 push。
+# 注意：本工作流只负责「安装 + 门禁 + 构建 + 发布」，不建 tag、不 push。
 # tag 由开发者本地按约定执行：git tag -s v1.0.0 -m "release 1.0.0" 后推送。
 
 name: Release
@@ -37,13 +33,19 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 只跑门禁与 publish --dry-run，不上传 registry
+        type: boolean
+        default: true
+        required: false
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: npm-publish
   cancel-in-progress: false
 
 defaults:
@@ -54,45 +56,89 @@ jobs:
   publish:
     name: Build, test and publish to npm
     runs-on: ubuntu-latest
+    # 必须与 npmjs Trusted Publisher 登记的 Environment 名一致；
+    # 也要在 GitHub 仓库 Settings → Environments 里建同名环境。
+    environment: npm
     steps:
       - name: Checkout extension package
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: ext
+          persist-credentials: false
 
       - name: Checkout monorepo (resolves link: deps to @x-ac/design-core / design-react)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: cn-xac/web-desgin
           path: project
+          persist-credentials: false
           # 若 web-desgin 为私有仓库，需改用 PAT：
           # token: ${{ secrets.CI_MONOREPO_PAT }}
 
       # 两个仓库都 checkout 到子目录，workspace 根没有 package.json；
       # 显式指向 ext/package.json 读取 packageManager，否则 action-setup 会报缺 version。
-      - uses: pnpm/action-setup@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
         with:
           package_json_file: ext/package.json
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: 24
+          registry-url: https://registry.npmjs.org/
           cache: pnpm
           cache-dependency-path: ext/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Type check
-        run: pnpm typecheck
-
-      - name: Test
-        run: pnpm test
-
+      # 门禁顺序：先 build 再 typecheck/test。本包 typecheck 依赖兄弟仓源码（link:），
+      # 不依赖 core/react 的 dist；但仍先产出库产物，让 verify-dist 能硬校验。
       - name: Build library
         run: pnpm build
 
-      # tokenless OIDC：不配置 NPM_TOKEN，靠 id-token: write + --provenance 完成发布与溯源证明。
-      # --no-git-checks：因同级 checkout 的 project/ 在本仓视角属未跟踪目录，跳过 working-tree 校验。
+      # 产物硬校验：脚本写坏时「build 绿 → 发出没有 dist 的空包」，这里改成硬失败。
+      - name: Verify build artifacts
+        run: node tools/verify-dist.mjs
+
+      - name: Typecheck & test
+        run: |
+          pnpm typecheck
+          pnpm test
+
+      # 版本一致性：tag 后缀必须等于 package.json 的 version，防手滑。
+      - name: Verify tag matches package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "workflow_dispatch 触发，跳过 tag 校验（REF=$GITHUB_REF_NAME）"
+            exit 0
+          fi
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "tag=$TAG version=$VERSION"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::tag v$TAG 与 package.json 版本 $VERSION 不一致"
+            exit 1
+          fi
+
+      # 上传前预览 tarball 清单，避免误把 src / 测试 / lockfile 打进包。
+      # --config.ignore-scripts=true：dist 已产出并校验过，跳过 prepack 重复构建
+      #（pnpm pack 没有 --ignore-scripts 选项，用通用 config 传入）。
+      - name: Preview packed contents
+        run: pnpm --config.ignore-scripts=true pack --dry-run
+
+      # 手动触发默认路径：与真发版同一条命令，只多一个 --dry-run。
+      # 刻意不带 --provenance —— 来源证明要绑定真实发布，dry-run 下无意义。
+      - name: Publish (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: pnpm publish --access public --no-git-checks --ignore-scripts --dry-run
+
+      # --ignore-scripts：dist 已产出，跳过 prepack 的重复构建，也杜绝发布钩子递归触发 publish。
+      # --no-git-checks：同级 checkout 的 project/ 在本仓视角属未跟踪目录。
+      # --provenance：生成来源证明（需 public 仓库 + id-token: write）。
       - name: Publish to npm (trusted publishing, no token)
-        run: pnpm publish --access public --no-git-checks --provenance
+        if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
+        run: pnpm publish --access public --provenance --no-git-checks --ignore-scripts

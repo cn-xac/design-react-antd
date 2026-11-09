@@ -1,22 +1,22 @@
 # GitHub Pages 部署工作流（本包自带完整示例站）
 #
-# 触发：
-#   - 推送 main 分支，且 src / example / 工作流 / 锁文件有改动时自动部署；
-#   - 也支持在 Actions 页面手动 workflow_dispatch 触发。
+# 参考 cn-xac/regex 的 .github/workflows/pages.yml，按本仓布局调整：
+#   - 本包用 link:../project/packages/{core,react} 依赖兄弟仓源码，
+#     故 CI 并排 checkout：本仓库 → ext/，monorepo → project/。
+#     所有 run 步骤 working-directory = ext/，缓存路径带 ext/ 前缀。
+#   - 部署内容由 tools/pages.mjs 构建：复用 example/vite.config.ts 的 alias 与分包，
+#     用 vite build API 覆盖 base=/<repo>/ 输出到 pages-dist/，并做零断链自检
+#     （绝对路径必须带 base 前缀 + 引用的文件必须真实存在）。
+#   - PAGES_REPO 取 github.event.repository.name，仓库改名不用改脚本。
 #
-# 部署内容：example/ 的完整 React 实例（设计器 + 渲染器双页），
-# 站点地址 https://cn-xac.github.io/design-react-antd/
-# （vite base 在 NODE_ENV=production 时自动取 /design-react-antd/，与仓库名一致）。
+# configure-pages 的 enablement:true 会自动把 Pages Source 切到 GitHub Actions，
+# 免去手动在 Settings → Pages 里设置；需要仓库有 pages:write + id-token:write 权限。
 #
-# 前置（一次性，在 GitHub 仓库 Settings → Pages 操作）：
-#   Source = GitHub Actions。
+# 触发：push main 且 src / example / tools / 工作流 / 锁文件有改动时自动部署；
+#       也支持在 Actions 页面手动 workflow_dispatch 触发。
+# 站点地址：https://cn-xac.github.io/design-react-antd/
 #
-# 与 publish.yml 一样，本包 devDependencies 用 link:../project/packages/{core,react}
-# 指向 cn-xac/web-desgin 源码，故 CI 需把该 monorepo 作为同级目录 checkout。
-# 本仓库 → ext/，monorepo → project/，使 ext/../project 恰好命中 link 路径。
-# example/vite.config.ts 的 alias 也按同样的相对层级写，本地与 CI 完全一致。
-#
-# 注意：本工作流只构建示例，不构建发布用的库产物，也不发布 npm。
+# 注意：本工作流只构建示例站，不构建发布用的库产物，也不发布 npm。
 
 name: Pages
 
@@ -27,6 +27,7 @@ on:
     paths:
       - "src/**"
       - "example/**"
+      - "tools/**"
       - ".github/workflows/pages.yml"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -52,25 +53,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout extension package
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: ext
+          persist-credentials: false
 
       - name: Checkout monorepo (resolves link: deps)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: cn-xac/web-desgin
           path: project
+          persist-credentials: false
           # 若 web-desgin 为私有仓库，需改用 PAT：
           # token: ${{ secrets.CI_MONOREPO_PAT }}
 
       # 两个仓库都 checkout 到子目录，workspace 根没有 package.json；
       # 显式指向 ext/package.json 读取 packageManager，否则 action-setup 会报缺 version。
-      - uses: pnpm/action-setup@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
         with:
           package_json_file: ext/package.json
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -79,20 +84,31 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Type check
-        run: pnpm typecheck
+      # 全量门禁：任一构建 / 类型检查 / 测试失败都在此早停，此时尚未对外部署。
+      - name: Build library
+        run: pnpm build
 
-      - name: Test
-        run: pnpm test
+      - name: Verify build artifacts
+        run: node tools/verify-dist.mjs
 
-      - name: Build example
-        run: pnpm build:example
+      - name: Typecheck & test
+        run: |
+          pnpm typecheck
+          pnpm test
 
-      - uses: actions/configure-pages@v5
+      - name: Build Pages bundle (base=/${{ github.event.repository.name }}/)
+        run: node tools/pages.mjs
+        env:
+          PAGES_REPO: ${{ github.event.repository.name }}
 
-      - uses: actions/upload-pages-artifact@v3
+      # setup-pages 会去查 Pages 是否开启；enablement:true 时自动切到 workflow 模式。
+      - uses: actions/configure-pages@v6
         with:
-          path: ext/example/dist
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: ext/pages-dist
 
   deploy:
     name: Deploy to GitHub Pages
@@ -103,4 +119,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

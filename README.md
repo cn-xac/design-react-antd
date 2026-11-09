@@ -80,8 +80,10 @@ pnpm dev            # http://127.0.0.1:5176
 pnpm typecheck      # 库 + 示例两轮 tsc
 pnpm test           # 12 个用例（适配包 + 示例 Schema 运行时冒烟）
 pnpm build          # 库产物 dist/
-pnpm build:example  # 示例站 example/dist/
-pnpm check          # 以上全部
+pnpm verify:dist    # 库产物存在性/非空/d.ts 路径硬校验
+pnpm build:example  # 示例站 example/dist/（base: /）
+pnpm pages:build    # Pages 产物 pages-dist/（base: /design-react-antd/ + 零断链自检）
+pnpm check          # 以上全部（含 verify:dist 与 pages:build）
 ```
 
 示例通过 vite alias 直接消费 `src/` 与兄弟仓 `../project/packages/{core,react}/src` 源码，
@@ -104,27 +106,48 @@ pnpm check          # 以上全部
 
 ## CI / 部署
 
+工作流模式参考 `cn-xac/regex` 的 `.github/workflows/`，按本仓「独立适配包」布局调整。
+
 | 工作流 | 触发 | 作用 |
 | --- | --- | --- |
-| `.github/workflows/publish.yml` | push `v*` tag 或手动 | OIDC 可信发布到 npm（免 token，带 provenance） |
-| `.github/workflows/pages.yml` | push main 或手动 | 构建 `example/` 并部署到 GitHub Pages |
+| `publish.yml` | push `v*` tag / 手动（默认 dry_run） | OIDC 可信发布到 npm（免 token，带 provenance） |
+| `pages.yml` | push main / 手动 | 构建示例站并部署到 GitHub Pages |
+
+**发布门禁**（`publish.yml`）：`install → build → verify-dist → typecheck & test →
+tag 与 package.json 版本一致性 → pack 预览 → publish`。
+手动触发默认 `dry_run=true`，只跑门禁 + `publish --dry-run`（除上传 registry 外做尽一切），
+用来验证工作流本身；tag 触发则真发布。publish 带 `--ignore-scripts`（dist 已产出，
+跳过 `prepack` 重复构建）、`--provenance`、`--no-git-checks`。
+
+**Pages 门禁**（`pages.yml`）：`install → build → verify-dist → typecheck & test →
+node tools/pages.mjs → configure-pages → upload artifact`。
+`tools/pages.mjs` 复用 `example/vite.config.ts` 的 alias 与分包，用 vite build API 覆盖
+`base=/<repo>/` 输出到 `pages-dist/`，并做**零断链自检**（绝对路径必须带 base 前缀、
+引用的文件与 chunk 相对 import 必须真实存在）。`configure-pages` 带 `enablement: true`，
+会自动把 Pages Source 切到 GitHub Actions。
 
 两个工作流都把本仓库 checkout 到 `ext/`、把 `cn-xac/web-desgin` checkout 到 `project/`，
 以解析 devDependencies 里的 `link:../project/packages/*`（本地也是同样的并排布局）。
+因 workspace 根没有 `package.json`，`pnpm/action-setup` 用 `package_json_file: ext/package.json`
+读取 packageManager，`setup-node` 的缓存路径用 `ext/pnpm-lock.yaml`。
 
 ### 一次性前置条件（需仓库所有者操作）
 
 1. **npm 可信发布**：npmjs.com 包设置 → Publishing access → Add a trusted publisher →
    GitHub Actions，填 `owner=cn-xac`、`repository=design-react-antd`、`Workflow=publish.yml`。
-   首次发布前需先在 npm 创建/认领 `@x-ac/design-react-antd`（scope 已持有）。
-2. **GitHub Pages**：仓库 Settings → Pages → Source = **GitHub Actions**。
-3. **依赖仓库可见性**：若 `cn-xac/web-desgin` 为私有仓库，需在两个工作流里给
+   - **Environment 名必须与 `publish.yml` 里的 `environment: npm` 一致**，
+     并在 GitHub 仓库 Settings → Environments 里建同名 `npm` 环境；
+     若 npm 侧登记的是别的名字，需同步改工作流里的 `environment`。
+   - 可信发布者只能绑定到**已存在的包**：首版需先手工种一个占位版本（如 `0.0.0`），
+     绑定 Trusted Publisher 后正式版本才由工作流接管。
+2. **依赖仓库可见性**：若 `cn-xac/web-desgin` 为私有仓库，需在两个工作流里给
    monorepo checkout 加 `token: ${{ secrets.CI_MONOREPO_PAT }}`（文件内已留注释）。
-4. **发布命令**：tag 由开发者本地按约定执行，工作流不建 tag、不 push。
+3. **发布命令**：tag 由开发者本地按约定执行（`git tag -s v1.0.0 -m "release 1.0.0"` 后推送），
+   工作流不建 tag、不 push。
 
 > Pages 地址：`https://cn-xac.github.io/design-react-antd/`。
-> `example/vite.config.ts` 在 `NODE_ENV=production` 时自动把 base 设为 `/design-react-antd/`，
-> dev 仍为 `/`；若仓库改名，需同步该 base。
+> `example/vite.config.ts` 始终保持 `base: '/'`（本地 dev / `build:example` 用），
+> Pages 子路径由 `tools/pages.mjs` 依 `PAGES_REPO` 注入；仓库改名无需改脚本。
 
 ## 目录结构
 
@@ -142,7 +165,10 @@ example/
   src/schema.ts      预置 PageSchema（全物料 + 嵌套子表单 + 动作链）与种子数据
   src/AdapterPanel.tsx  适配包注册清单可视化
   src/styles.css     示例布局与响应式样式
-  vite.config.ts     alias + Pages base + 分包策略
+  vite.config.ts     alias + 分包策略（base 恒为 /）
 tests/              12 个用例（适配包冒烟 + 示例 Schema 运行时冒烟）
+tools/
+  verify-dist.mjs   库产物硬校验（CI build 后立即跑）
+  pages.mjs         Pages 构建 + 动态 base + 零断链自检
 scripts/            构建前清理 dist
 ```
