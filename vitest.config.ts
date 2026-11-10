@@ -14,11 +14,11 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom", "antd"],
     alias: [
-      { find: "@x-ac/design-react-antd", replacement: r("./src/index.tsx") },
-      { find: "@x-ac/design-core", replacement: r("../project/packages/core/src/index.ts") },
-      { find: "@x-ac/design-react/kit", replacement: r("../project/packages/react/src/kit.ts") },
-      { find: "@x-ac/design-react/designer", replacement: r("../project/packages/react/src/designer.ts") },
-      { find: "@x-ac/design-react", replacement: r("../project/packages/react/src/index.ts") },
+      { find: "@x-ac/web-design-react-antd", replacement: r("./src/index.tsx") },
+      { find: "@x-ac/web-design-core", replacement: r("../project/packages/core/src/index.ts") },
+      { find: "@x-ac/web-design-react/kit", replacement: r("../project/packages/react/src/kit.ts") },
+      { find: "@x-ac/web-design-react/designer", replacement: r("../project/packages/react/src/designer.ts") },
+      { find: "@x-ac/web-design-react", replacement: r("../project/packages/react/src/index.ts") },
     ],
   },
   test: {

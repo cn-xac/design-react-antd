@@ -10,7 +10,7 @@
  *   组件按需取用，不认识的属性忽略，避免 React 把未知属性打到 DOM 上。
  */
 import type { CSSProperties, ReactNode } from "react";
-import { parseOptions, prefixedComponents } from "@x-ac/design-core";
+import { parseOptions, prefixedComponents } from "@x-ac/web-design-core";
 import {
   Alert,
   Button,

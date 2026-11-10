@@ -24,7 +24,7 @@ export default defineConfig({
         content: content.replace(
           /(?:\.\.\/)+[\w./-]*project\/packages\/(core|react)\/src([\w./-]*)/g,
           (_match, name: string, rest: string) =>
-            `@x-ac/design-${name}${rest.startsWith("/kit") ? "/kit" : rest.startsWith("/designer") ? "/designer" : ""}`,
+            `@x-ac/web-design-${name}${rest.startsWith("/kit") ? "/kit" : rest.startsWith("/designer") ? "/designer" : ""}`,
         ),
       }),
     }),
@@ -42,10 +42,10 @@ export default defineConfig({
         "react-dom",
         "react/jsx-runtime",
         /^antd(\/|$)/,
-        "@x-ac/design-core",
-        "@x-ac/design-react",
-        "@x-ac/design-react/kit",
-        "@x-ac/design-react/designer",
+        "@x-ac/web-design-core",
+        "@x-ac/web-design-react",
+        "@x-ac/web-design-react/kit",
+        "@x-ac/web-design-react/designer",
       ],
       output: {
         entryFileNames: "[name].js",

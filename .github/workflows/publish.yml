@@ -1,4 +1,4 @@
-# 发布工作流：@x-ac/design-react-antd → npm（可信发布 / OIDC / 免 token）
+# 发布工作流：@x-ac/web-design-react-antd → npm（可信发布 / OIDC / 免 token）
 #
 # 触发：
 #   - 推送 v* tag（如 v1.0.0）即发布；
@@ -66,7 +66,7 @@ jobs:
           path: ext
           persist-credentials: false
 
-      - name: "Checkout monorepo (resolves link: deps to @x-ac/design-core / design-react)"
+      - name: "Checkout monorepo (resolves link: deps to @x-ac/web-design-core / design-react)"
         uses: actions/checkout@v7
         with:
           repository: cn-xac/web-desgin

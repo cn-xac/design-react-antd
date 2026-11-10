@@ -12,8 +12,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
-import { ReactDesignProvider, SchemaRenderer } from "@x-ac/design-react";
-import type { SchemaRendererHandle } from "@x-ac/design-react";
+import { ReactDesignProvider, SchemaRenderer } from "@x-ac/web-design-react";
+import type { SchemaRendererHandle } from "@x-ac/web-design-react";
 import {
   ACTION_DEFINITIONS,
   MATERIALS,
@@ -21,8 +21,8 @@ import {
   missingComponents,
   type ActionSchema,
   type NodeSchema,
-} from "@x-ac/design-core";
-import { antdAdapter, ANTD_COMPONENTS } from "@x-ac/design-react-antd";
+} from "@x-ac/web-design-core";
+import { antdAdapter, ANTD_COMPONENTS } from "@x-ac/web-design-react-antd";
 import { PAGE_ID, seedPage, seedData } from "../example/src/schema";
 
 let root: Root | null = null;

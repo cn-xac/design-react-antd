@@ -1,6 +1,6 @@
 /**
  * 动作执行器的 Ant Design 适配：消息与确认框。
- * 核心逻辑在 @x-ac/design-core / @x-ac/design-react，这里只提供宿主能力。
+ * 核心逻辑在 @x-ac/web-design-core / @x-ac/web-design-react，这里只提供宿主能力。
  *
  * antd 6 仍支持静态 message.xxx / Modal.confirm，但静态方法脱离 React context，
  * 拿不到 ConfigProvider 的主题。若宿主用了 <App> 包裹，可通过 setAntdAppContext
@@ -8,8 +8,8 @@
  * 保证纯渲染器 / 无 Provider 场景也能正常提示。
  */
 import { App, Modal, message as antdMessage } from "antd";
-import { runActions as runCoreActions } from "@x-ac/design-core";
-import type { ActionAdapter, ActionContext, ActionNotifyType, ActionSchema } from "@x-ac/design-core";
+import { runActions as runCoreActions } from "@x-ac/web-design-core";
+import type { ActionAdapter, ActionContext, ActionNotifyType, ActionSchema } from "@x-ac/web-design-core";
 
 type AppContext = ReturnType<typeof App.useApp>;
 

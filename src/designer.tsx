@@ -19,7 +19,7 @@ import {
   Select,
   Switch,
 } from "antd";
-import type { DesignerControlProps } from "@x-ac/design-react/designer";
+import type { DesignerControlProps } from "@x-ac/web-design-react/designer";
 
 export interface SelectOption {
   label: string;

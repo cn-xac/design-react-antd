@@ -178,10 +178,10 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.2.1
         version: 6.2.1(vite@8.3.6(@types/node@22.20.5))
-      '@x-ac/design-core':
+      '@x-ac/web-design-core':
         specifier: link:../project/packages/core
         version: link:../project/packages/core
-      '@x-ac/design-react':
+      '@x-ac/web-design-react':
         specifier: link:../project/packages/react
         version: link:../project/packages/react
       antd:

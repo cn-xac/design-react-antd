@@ -9,8 +9,8 @@
  * 注意：Schema 里写的是协议物料名（ec-xxx），core 的 materialKey 会归一；
  * 节点 id 同时是自动绑定的数据键（form.<id>）。
  */
-import { createEmptyPage } from "@x-ac/design-core";
-import type { PageSchema } from "@x-ac/design-core";
+import { createEmptyPage } from "@x-ac/web-design-core";
+import type { PageSchema } from "@x-ac/web-design-core";
 
 export const PAGE_ID = "demo";
 
@@ -38,7 +38,7 @@ export function seedPage(): PageSchema {
         component: "ec-alert",
         props: {
           type: "info",
-          message: "本页全部控件来自 @x-ac/design-react-antd 注册的 Ant Design 组件",
+          message: "本页全部控件来自 @x-ac/web-design-react-antd 注册的 Ant Design 组件",
           description: "渲染器只消费组件、导出数据、派发事件；设计器与渲染器共用同一份 Schema。",
         },
       },

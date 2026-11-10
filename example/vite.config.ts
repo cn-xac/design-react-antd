@@ -19,13 +19,13 @@ export default defineConfig({
     dedupe: ["react", "react-dom", "antd"],
     alias: [
       // 本包走源码，示例改动即刻生效，不依赖 dist
-      { find: "@x-ac/design-react-antd", replacement: r("../src/index.tsx") },
-      { find: "@x-ac/design-core", replacement: r("../../project/packages/core/src/index.ts") },
+      { find: "@x-ac/web-design-react-antd", replacement: r("../src/index.tsx") },
+      { find: "@x-ac/web-design-core", replacement: r("../../project/packages/core/src/index.ts") },
       // 顺序敏感：子路径必须先于包别名
-      { find: "@x-ac/design-react/style.css", replacement: r("../../project/packages/react/src/styles.css") },
-      { find: "@x-ac/design-react/kit", replacement: r("../../project/packages/react/src/kit.ts") },
-      { find: "@x-ac/design-react/designer", replacement: r("../../project/packages/react/src/designer.ts") },
-      { find: "@x-ac/design-react", replacement: r("../../project/packages/react/src/index.ts") },
+      { find: "@x-ac/web-design-react/style.css", replacement: r("../../project/packages/react/src/styles.css") },
+      { find: "@x-ac/web-design-react/kit", replacement: r("../../project/packages/react/src/kit.ts") },
+      { find: "@x-ac/web-design-react/designer", replacement: r("../../project/packages/react/src/designer.ts") },
+      { find: "@x-ac/web-design-react", replacement: r("../../project/packages/react/src/index.ts") },
     ],
   },
   build: {

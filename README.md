@@ -1,28 +1,28 @@
-# @x-ac/design-react-antd
+# @x-ac/web-design-react-antd
 
-基于 `@x-ac/design-react/kit` 的 **Ant Design 6** 适配包。
+基于 `@x-ac/web-design-react/kit` 的 **Ant Design 6** 适配包。
 
-引擎（`@x-ac/design-core` / `@x-ac/design-react`）只提供架构：整合已注册的组件，形成设计器与渲染器。
+引擎（`@x-ac/web-design-core` / `@x-ac/web-design-react`）只提供架构：整合已注册的组件，形成设计器与渲染器。
 本包只负责**注册组件与组件配置**，以及引擎自身 UI（属性设置面板等）所用的控件；
 渲染器只消费组件、导出数据、派发事件，不含任何 UI 库知识。
 
 ## 安装
 
 ```bash
-pnpm add @x-ac/design-react-antd antd dayjs
+pnpm add @x-ac/web-design-react-antd antd dayjs
 ```
 
-`@x-ac/design-core`、`@x-ac/design-react`、`react`、`react-dom` 为 peer 依赖。
+`@x-ac/web-design-core`、`@x-ac/web-design-react`、`react`、`react-dom` 为 peer 依赖。
 `antd` 需 6.x（原生支持 React 19，`peerDependencies: react >=18`），**不需要**
 `@ant-design/v5-patch-for-react-19`（那是 antd 5 的历史补丁）。
 
 ## 用法
 
 ```tsx
-import { ReactDesignProvider, SchemaRenderer } from "@x-ac/design-react";
-import { SchemaDesigner } from "@x-ac/design-react/designer";
-import { antdAdapter, AntdConfigProvider } from "@x-ac/design-react-antd";
-import "@x-ac/design-react/style.css";
+import { ReactDesignProvider, SchemaRenderer } from "@x-ac/web-design-react";
+import { SchemaDesigner } from "@x-ac/web-design-react/designer";
+import { antdAdapter, AntdConfigProvider } from "@x-ac/web-design-react-antd";
+import "@x-ac/web-design-react/style.css";
 
 // AntdConfigProvider 可选：让 message / Modal 走 App context，同步 ConfigProvider 主题。
 // 不包裹也能工作，actions 会回落到 antd 静态 API。

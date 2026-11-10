@@ -7,14 +7,14 @@
  * 3. designer kit：7 个槽位全部由 antd 控件实现（属性设置面板即用这些组件）。
  */
 import { Typography, Tag, Descriptions, Table, Alert } from "antd";
-import { MATERIALS, missingComponents } from "@x-ac/design-core";
+import { MATERIALS, missingComponents } from "@x-ac/web-design-core";
 import {
   antdAdapter,
   ANTD_COMPONENTS,
   antdMaterials,
   antdDesignerKit,
   ANTD_EXTRA_MATERIALS,
-} from "@x-ac/design-react-antd";
+} from "@x-ac/web-design-react-antd";
 
 const SLOT_LABELS: Record<string, string> = {
   Button: "按钮（顶栏 / 属性面板动作）",
@@ -39,7 +39,7 @@ export function AdapterPanel() {
     <div className="adapter">
       <Typography.Title level={4}>适配包注册清单</Typography.Title>
       <Typography.Paragraph type="secondary">
-        <code>@x-ac/design-react</code> 提供设计器与渲染器架构；本包只注册组件实现、物料配置与设计器控件，
+        <code>@x-ac/web-design-react</code> 提供设计器与渲染器架构；本包只注册组件实现、物料配置与设计器控件，
         引擎把这些注册项整合成可用的设计器。渲染器不认识任何 UI 库，只消费组件表。
       </Typography.Paragraph>
 

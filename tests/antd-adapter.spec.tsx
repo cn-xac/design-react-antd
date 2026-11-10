@@ -12,12 +12,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
-import { SchemaRenderer, ReactDesignProvider } from "@x-ac/design-react";
-import type { SchemaRendererHandle } from "@x-ac/design-react";
-import { SchemaDesigner } from "@x-ac/design-react/designer";
-import { createMemoryRepository, createEmptyPage, missingComponents } from "@x-ac/design-core";
-import type { PageSchema } from "@x-ac/design-core";
-import { antdAdapter, antdMaterials, antdDesignerKit, ANTD_COMPONENTS } from "@x-ac/design-react-antd";
+import { SchemaRenderer, ReactDesignProvider } from "@x-ac/web-design-react";
+import type { SchemaRendererHandle } from "@x-ac/web-design-react";
+import { SchemaDesigner } from "@x-ac/web-design-react/designer";
+import { createMemoryRepository, createEmptyPage, missingComponents } from "@x-ac/web-design-core";
+import type { PageSchema } from "@x-ac/web-design-core";
+import { antdAdapter, antdMaterials, antdDesignerKit, ANTD_COMPONENTS } from "@x-ac/web-design-react-antd";
 
 const page: PageSchema = {
   schemaVersion: "1.0.0",

@@ -17,7 +17,7 @@ import {
   tagPortability,
   type Material,
   type PropField,
-} from "@x-ac/design-core";
+} from "@x-ac/web-design-core";
 
 /** 给 core 既有物料补 antd 专有属性；键与 core 字段同名时由 mergeFields 覆盖 */
 const ANTD_FIELD_PATCHES: Record<string, PropField[]> = {

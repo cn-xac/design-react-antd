@@ -10,12 +10,12 @@
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Segmented, Typography, Button, Empty } from "antd";
-import { createMemoryRepository } from "@x-ac/design-core";
-import type { PageSchema, UiEventPayload } from "@x-ac/design-core";
-import { ReactDesignProvider, SchemaRenderer } from "@x-ac/design-react";
-import type { SchemaRendererHandle } from "@x-ac/design-react";
-import { SchemaDesigner } from "@x-ac/design-react/designer";
-import { antdAdapter, AntdConfigProvider } from "@x-ac/design-react-antd";
+import { createMemoryRepository } from "@x-ac/web-design-core";
+import type { PageSchema, UiEventPayload } from "@x-ac/web-design-core";
+import { ReactDesignProvider, SchemaRenderer } from "@x-ac/web-design-react";
+import type { SchemaRendererHandle } from "@x-ac/web-design-react";
+import { SchemaDesigner } from "@x-ac/web-design-react/designer";
+import { antdAdapter, AntdConfigProvider } from "@x-ac/web-design-react-antd";
 import { PAGE_ID, seedPage, seedData } from "./schema";
 import { AdapterPanel } from "./AdapterPanel";
 
@@ -97,7 +97,7 @@ export default function App() {
       <main className="demo">
         <header className="demo__head">
           <Typography.Title level={2} style={{ margin: 0 }}>
-            @x-ac/design-react-antd
+            @x-ac/web-design-react-antd
           </Typography.Title>
           <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
             引擎只提供架构；适配包注册组件与组件配置，引擎整合成设计器与渲染器。
