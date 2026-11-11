@@ -3,7 +3,7 @@
  *
  * - 「设计器」：SchemaDesigner 用 antdAdapter，属性面板/顶栏/物料面板全是 antd 组件；
  * - 「渲染器」：SchemaRenderer 消费同一份 PageSchema，只做「用组件渲染 + 导出数据 + 派发事件」；
- * - 「组件实例」：GalleryPanel 把全部物料逐个渲染成真实实例，分类导航 + 搜索定位，快速看效果；
+ * - 「组件实例」：GalleryPanel 把全部物料按分类网格一行多卡渲染成真实实例，搜索过滤，快速看效果；
  * - 「适配包清单」：可视化本包注册了哪些组件与配置，印证架构分层。
  *
  * 布局策略：视口固定（html/body overflow hidden），页签常驻头部，各区域在自身容器内滚动，

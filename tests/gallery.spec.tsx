@@ -2,9 +2,9 @@
 /**
  * 组件实例画廊冒烟：全部物料都能经真实渲染管线画出实例，不抛错、不缺组件。
  *
- * 画廊与「演示专用代码」的区别就在这里被测住：每个物料块里是 SchemaRenderer
+ * 画廊与「演示专用代码」的区别就在这里被测住：每张卡片里是 SchemaRenderer
  * 的真实产出（.ant-input / .ant-table 等真实 antd 类名），任何一个物料渲染
- * 失败都会让块数或缺控件，直接红灯。
+ * 失败都会让卡片数或缺控件，直接红灯。
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("组件实例画廊", () => {
-  it("全部物料都渲染出实例块，关键 antd 控件真实出现", async () => {
+  it("全部物料都渲染出实例卡片，关键 antd 控件真实出现", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -32,8 +32,11 @@ describe("组件实例画廊", () => {
       root!.render(<GalleryPanel />);
     });
 
-    const blocks = container.querySelectorAll(".demo__gallery-block");
-    expect(blocks.length).toBe(antdMaterials.length);
+    const cards = container.querySelectorAll(".demo__gallery-card");
+    expect(cards.length).toBe(antdMaterials.length);
+    // 网格版式：每个物料一张卡，分类分组标题存在
+    expect(container.querySelectorAll(".demo__gallery-cat").length).toBeGreaterThan(0);
+    expect(container.querySelectorAll(".demo__gallery-grid").length).toBeGreaterThan(0);
 
     // 关键控件抽样：输入 / 下拉 / 表格 / 按钮 / 开关 应全部真实出现
     expect(container.querySelector(".ant-input")).toBeTruthy();

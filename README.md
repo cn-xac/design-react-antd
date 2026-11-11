@@ -65,8 +65,8 @@ export function App() {
 
 - **设计器**：拖拽搭建 Schema，属性面板（输入框 / 下拉 / 开关 / 取色）用 antd 控件配置；
 - **渲染器**：消费同一份 Schema，实时展示 scope、事件派发与提交结果；
-- **组件实例**：全部 30 个物料逐个渲染真实实例（走 SchemaRenderer 管线，非演示专用代码），
-  左侧分类导航 + 搜索，点击锚点直达对应实例；
+- **组件实例**：全部 30 个物料按分类分组、一行多张小卡（对齐 vue-element-plus 的物料总览版式），
+  每张卡都是走 SchemaRenderer 管线的真实实例；顶部搜索按名称 / ec-* / 分类过滤；
 - **适配包清单**：可视化本包注册了哪些组件、物料、designer kit 槽位，
   以及 `missingComponents(antdAdapter)` 为空（设计器面板无置灰项），直观印证架构分层。
 

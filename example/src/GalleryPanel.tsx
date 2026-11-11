@@ -1,16 +1,14 @@
 /**
- * 组件实例画廊：左边按分类列出本包注册的全部物料（30 个），右边画布逐一渲染真实实例。
+ * 组件实例画廊：按分类分组，每组是自适应网格（一行多张小卡），
+ * 版式对齐 web-design-vue-element-plus 的「物料总览」（CatalogSection/MaterialCard）：
  *
- * 为什么走 SchemaRenderer 而不是直接 import antd 组件：
- * 实例经过「组件表 + 绑定通道 + 作用域」的真实渲染管线，看到的就是渲染器实际产出的效果，
- * 而不是一套游离于引擎之外的演示代码。每个物料是一个独立最小 PageSchema（props 合并
- * 物料 defaultProps 与本文件的 DEMO_PROPS 覆盖值），数据作用域统一来自 GALLERY_DATA。
- *
- * 布局约束：导航与画布各自内部滚动（scrollIntoView 锚点跳转也发生在画布内部），
- * 不产生文档级滚动 —— 与 App 壳的「视口固定、区域内滚」策略一致。
+ * - 每张卡片 = 卡头（物料名 + ec-* 协议名）+ 卡身（SchemaRenderer 真实渲染的实例）；
+ * - 实例走「组件表 + 绑定通道 + 作用域」的真实管线，props = 物料 defaultProps
+ *   叠加 DEMO_PROPS 演示覆盖值，布局类物料再挂演示子节点；
+ * - 顶部搜索按标题 / ec-* / 分类过滤；画布在容器内滚动，不产生文档级滚动。
  */
 import { useMemo, useState } from "react";
-import { Empty, Input, Tag } from "antd";
+import { Empty, Input } from "antd";
 import { createEmptyPage } from "@x-ac/web-design-core";
 import type { PageSchema } from "@x-ac/web-design-core";
 import { SchemaRenderer, ReactDesignProvider } from "@x-ac/web-design-react";
@@ -25,21 +23,22 @@ const CATEGORY_ORDER = ["布局", "展示", "表单", "交互", "业务"];
 const IMAGE_SRC =
   "data:image/svg+xml;charset=utf-8," +
   encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100">` +
       `<rect width="100%" height="100%" rx="6" fill="#e6f4ff"/>` +
-      `<text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" font-size="14" fill="#1677ff">antd Image · 240×120</text>` +
+      `<text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#1677ff">antd Image</text>` +
       `</svg>`,
   );
 
 /**
  * 每个物料的展示参数：合并到物料 defaultProps 之上（覆盖值优先），
  * 键为协议物料名（ec-*）；表单类初值统一走 GALLERY_DATA.form.<节点id> 自动绑定。
+ * 尺寸类取值按「卡片宽约 230px」缩小（如图像 160×100），保证窄卡内不溢出。
  */
 const DEMO_PROPS: Record<string, Record<string, unknown>> = {
   "ec-input": { label: "输入框", placeholder: "请输入内容", clearable: true, maxlength: 20 },
   "ec-textarea": { label: "多行文本", rows: 3, showCount: true },
   "ec-number": { label: "数字输入", min: 0, max: 999, precision: 0 },
-  "ec-select": { label: "下拉选择", options: "技术中心,产品中心,设计中心", placeholder: "请选择", showSearch: true, clearable: true },
+  "ec-select": { label: "下拉选择", options: "技术中心,产品中心,设计中心", placeholder: "请选择", clearable: true },
   "ec-radio": { label: "单选框", options: "选项一,选项二,选项三" },
   "ec-checkbox": { label: "多选框", options: "选项一,选项二,选项三" },
   "ec-switch": { label: "开关", activeText: "开启", inactiveText: "关闭" },
@@ -52,17 +51,17 @@ const DEMO_PROPS: Record<string, Record<string, unknown>> = {
   "ec-org-picker": { label: "组织选择", placeholder: "请选择组织" },
   "ec-dict-select": { label: "字典下拉", options: "低,中,高", placeholder: "请选择", clearable: true },
   "ec-amount-input": { label: "金额输入", precision: 2, currency: "¥" },
-  "ec-title": { text: "组件实例：标题物料", level: 3 },
-  "ec-text": { text: "文本物料支持 {{form.d_input}} 变量绑定。" },
+  "ec-title": { text: "标题物料", level: 4 },
+  "ec-text": { text: "文本支持 {{form.d_input}} 变量绑定。" },
   "ec-divider": { text: "分割线" },
   "ec-tag": { text: "标签", color: "blue" },
   "ec-alert": {
     type: "info",
     message: "提示条实例",
-    description: "支持 info / success / warning / error 语义，showIcon 可开关。",
+    description: "支持 info / success / warning / error 语义。",
     showIcon: true,
   },
-  "ec-image": { src: IMAGE_SRC, width: 240, height: 120, fit: "cover", radius: 6 },
+  "ec-image": { src: IMAGE_SRC, width: 160, height: 100, fit: "cover", radius: 6 },
   "ec-table": {
     columns: [
       { label: "姓名", prop: "name" },
@@ -78,7 +77,7 @@ const DEMO_PROPS: Record<string, Record<string, unknown>> = {
   "ec-button": { text: "主要按钮", type: "primary" },
   "ec-card": { title: "卡片标题", shadow: "never" },
   "ec-container": { padding: 12 },
-  "ec-grid": { columns: 2, gap: 16 },
+  "ec-grid": { columns: 2, gap: 12 },
   "ec-space": { direction: "horizontal", size: 12, wrap: true },
   "ec-subform": { label: "子表单（明细数组）", itemPath: "items", addText: "添加一项" },
 };
@@ -86,10 +85,10 @@ const DEMO_PROPS: Record<string, Record<string, unknown>> = {
 /** 布局类物料的子节点：用函数返回新数组，避免各实例共享同一份引用 */
 const DEMO_CHILDREN: Record<string, () => PageSchema["children"]> = {
   "ec-card": () => [
-    { id: "d_card_text", component: "ec-text", props: { text: "卡片是布局容器，内部可嵌任意物料。" } },
+    { id: "d_card_text", component: "ec-text", props: { text: "卡内可嵌任意物料。" } },
   ] as PageSchema["children"],
   "ec-container": () => [
-    { id: "d_ctn_text", component: "ec-text", props: { text: "容器内子节点，自带 12px 内边距。" } },
+    { id: "d_ctn_text", component: "ec-text", props: { text: "容器内子节点。" } },
   ] as PageSchema["children"],
   "ec-grid": () => [
     { id: "d_g_name", component: "ec-input", props: { label: "栅格列一", placeholder: "请输入" } },
@@ -97,8 +96,8 @@ const DEMO_CHILDREN: Record<string, () => PageSchema["children"]> = {
   ] as PageSchema["children"],
   "ec-space": () => [
     { id: "d_sp_tag", component: "ec-tag", props: { text: "antd 6.7", color: "blue" } },
-    { id: "d_sp_btn", component: "ec-button", props: { text: "间距内按钮", type: "primary" } },
-    { id: "d_sp_link", component: "ec-link", props: { text: "文字链接", type: "primary" } },
+    { id: "d_sp_btn", component: "ec-button", props: { text: "按钮", type: "primary" } },
+    { id: "d_sp_link", component: "ec-link", props: { text: "链接", type: "primary" } },
   ] as PageSchema["children"],
   "ec-subform": () => [
     { id: "s_name", component: "ec-input", props: { label: "商品名", placeholder: "如 机械键盘" } },
@@ -113,7 +112,7 @@ const DEMO_CHILDREN: Record<string, () => PageSchema["children"]> = {
 const GALLERY_DATA: Record<string, unknown> = {
   form: {
     d_input: "示例文本",
-    d_textarea: "这是多行文本的初始值",
+    d_textarea: "多行文本初始值",
     d_number: 128,
     d_select: "技术中心",
     d_radio: "选项一",
@@ -161,7 +160,6 @@ function demoPage(meta: MaterialMeta): PageSchema {
 
 export function GalleryPanel() {
   const [keyword, setKeyword] = useState("");
-  const [active, setActive] = useState("");
 
   /** 搜索过滤（标题 / 物料名 / 分类），再按分类分组返回 */
   const groups = useMemo(() => {
@@ -187,68 +185,52 @@ export function GalleryPanel() {
       .map((category) => ({ category, items: byCat.get(category)! }));
   }, [keyword]);
 
-  /** 锚点跳转：滚动发生在画布容器内部，不会牵动文档 */
-  const jump = (component: string) => {
-    setActive(component);
-    document.getElementById(`demo-${component}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  const shown = groups.reduce((n, g) => n + g.items.length, 0);
 
   return (
     <div className="demo__gallery">
-      <aside className="demo__gallery-nav">
+      <div className="demo__gallery-toolbar">
         <Input
           size="small"
           allowClear
           placeholder="搜索物料 / ec-*"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
+          style={{ width: 220 }}
         />
+        <span className="demo__gallery-total">
+          {shown} / {antdMaterials.length} 个物料
+        </span>
+      </div>
+
+      <div className="demo__gallery-main">
         {groups.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的物料" />
         ) : (
-          groups.map((group) => (
-            <div key={group.category}>
-              <div className="demo__gallery-cat">{group.category}</div>
-              {group.items.map((m) => (
-                <button
-                  key={m.component}
-                  type="button"
-                  className="demo__gallery-item"
-                  data-active={active === m.component}
-                  onClick={() => jump(m.component)}
-                  title={`${m.title} · ${m.component}`}
-                >
-                  <span className="demo__gallery-icon">{m.icon ?? "▪"}</span>
-                  <span className="demo__gallery-label">
-                    {m.title}
-                    <code>{m.component}</code>
-                  </span>
-                </button>
-              ))}
-            </div>
-          ))
-        )}
-      </aside>
-
-      <div className="demo__gallery-main">
-        {groups.length === 0 ? null : (
           <ReactDesignProvider adapter={antdAdapter}>
-            {groups.map((group) =>
-              group.items.map((m) => (
-                <section key={m.component} id={`demo-${m.component}`} className="demo__gallery-block">
-                  <div className="demo__gallery-block-head">
-                    <span className="demo__gallery-name">
-                      {m.icon ?? "▪"} {m.title}
-                    </span>
-                    <code className="demo__gallery-key">{m.component}</code>
-                    <Tag color="blue" style={{ marginLeft: "auto" }}>
-                      {m.category ?? "其他"}
-                    </Tag>
-                  </div>
-                  <SchemaRenderer page={demoPage(m)} data={GALLERY_DATA} />
-                </section>
-              )),
-            )}
+            {groups.map((group) => (
+              <section key={group.category}>
+                <h3 className="demo__gallery-cat">
+                  {group.category}
+                  <span className="demo__gallery-count">{group.items.length}</span>
+                </h3>
+                <div className="demo__gallery-grid">
+                  {group.items.map((m) => (
+                    <div key={m.component} className="demo__gallery-card">
+                      <div className="demo__gallery-card-head">
+                        <span className="demo__gallery-name">
+                          {m.icon ?? "▪"} {m.title}
+                        </span>
+                        <code className="demo__gallery-key">{m.component}</code>
+                      </div>
+                      <div className="demo__gallery-card-body">
+                        <SchemaRenderer page={demoPage(m)} data={GALLERY_DATA} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
           </ReactDesignProvider>
         )}
       </div>
