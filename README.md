@@ -61,12 +61,16 @@ export function App() {
 
 ## 本包自包含的完整示例
 
-`example/` 是完整 React 实例，三个页签：
+`example/` 是完整 React 实例，四个页签：
 
 - **设计器**：拖拽搭建 Schema，属性面板（输入框 / 下拉 / 开关 / 取色）用 antd 控件配置；
 - **渲染器**：消费同一份 Schema，实时展示 scope、事件派发与提交结果；
+- **组件实例**：全部 30 个物料逐个渲染真实实例（走 SchemaRenderer 管线，非演示专用代码），
+  左侧分类导航 + 搜索，点击锚点直达对应实例；
 - **适配包清单**：可视化本包注册了哪些组件、物料、designer kit 槽位，
   以及 `missingComponents(antdAdapter)` 为空（设计器面板无置灰项），直观印证架构分层。
+
+布局为「视口固定、区域内滚」：文档级滚动禁用，页签常驻头部，各区域在自身容器内滚动。
 
 预置 Schema（`example/src/schema.ts`）覆盖 **core 全部 27 个协议物料 + 3 个 antd 专有物料**，
 含两级嵌套子表单（订单 → 商品明细）、按组件ID自动绑定、必填校验，以及
@@ -162,8 +166,9 @@ src/
   app.tsx        可选的 App context 注入
   styles.css      最小补充样式
 example/
-  src/App.tsx        三页签主壳（设计器 / 渲染器 / 适配包清单）
+  src/App.tsx        四页签主壳（设计器 / 渲染器 / 组件实例 / 适配包清单）
   src/schema.ts      预置 PageSchema（全物料 + 嵌套子表单 + 动作链）与种子数据
+  src/GalleryPanel.tsx  组件实例画廊（分类导航 + 搜索 + 真实渲染实例）
   src/AdapterPanel.tsx  适配包注册清单可视化
   src/styles.css     示例布局与响应式样式
   vite.config.ts     alias + 分包策略（base 恒为 /）

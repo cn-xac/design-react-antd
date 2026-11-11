@@ -3,7 +3,11 @@
  *
  * - 「设计器」：SchemaDesigner 用 antdAdapter，属性面板/顶栏/物料面板全是 antd 组件；
  * - 「渲染器」：SchemaRenderer 消费同一份 PageSchema，只做「用组件渲染 + 导出数据 + 派发事件」；
+ * - 「组件实例」：GalleryPanel 把全部物料逐个渲染成真实实例，分类导航 + 搜索定位，快速看效果；
  * - 「适配包清单」：可视化本包注册了哪些组件与配置，印证架构分层。
+ *
+ * 布局策略：视口固定（html/body overflow hidden），页签常驻头部，各区域在自身容器内滚动，
+ * 不产生文档级滚动 —— 避免整页上下翻导致组件难以定位。
  *
  * 设计器与渲染器通过内存仓储共享 Schema：设计器保存后渲染器重新读取，
  * 直观看到「设计时搭的 Schema → 运行时画出真实表单」这条链路。
@@ -18,8 +22,9 @@ import { SchemaDesigner } from "@x-ac/web-design-react/designer";
 import { antdAdapter, AntdConfigProvider } from "@x-ac/web-design-react-antd";
 import { PAGE_ID, seedPage, seedData } from "./schema";
 import { AdapterPanel } from "./AdapterPanel";
+import { GalleryPanel } from "./GalleryPanel";
 
-type TabKey = "designer" | "runtime" | "adapter";
+type TabKey = "designer" | "runtime" | "gallery" | "adapter";
 
 interface EventLine {
   kind: "hook" | "notify" | "submit" | "blocked";
@@ -96,23 +101,25 @@ export default function App() {
     <AntdConfigProvider>
       <main className="demo">
         <header className="demo__head">
-          <Typography.Title level={2} style={{ margin: 0 }}>
-            @x-ac/web-design-react-antd
-          </Typography.Title>
-          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            引擎只提供架构；适配包注册组件与组件配置，引擎整合成设计器与渲染器。
-            属性设置面板用的也是这里注册的 Ant Design 组件。
+          <div className="demo__head-row">
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              @x-ac/web-design-react-antd
+            </Typography.Title>
+            <Segmented
+              className="demo__tabs"
+              value={tab}
+              options={[
+                { label: "设计器", value: "designer" },
+                { label: "渲染器", value: "runtime" },
+                { label: "组件实例", value: "gallery" },
+                { label: "适配包清单", value: "adapter" },
+              ]}
+              onChange={(value) => setTab(value as TabKey)}
+            />
+          </div>
+          <Typography.Paragraph type="secondary" className="demo__desc" style={{ marginBottom: 0 }}>
+            引擎只提供架构；适配包注册组件与组件配置，引擎整合成设计器与渲染器。属性设置面板用的也是这里注册的 Ant Design 组件。
           </Typography.Paragraph>
-          <Segmented
-            className="demo__tabs"
-            value={tab}
-            options={[
-              { label: "设计器（搭建 Schema）", value: "designer" },
-              { label: "渲染器（消费 Schema）", value: "runtime" },
-              { label: "适配包清单", value: "adapter" },
-            ]}
-            onChange={(value) => setTab(value as TabKey)}
-          />
         </header>
 
         {tab === "designer" ? (
@@ -182,6 +189,10 @@ export default function App() {
                 submitForm）由 core 执行，宿主能力（消息 / 确认框）由本适配包提供。
               </Typography.Paragraph>
             </aside>
+          </section>
+        ) : tab === "gallery" ? (
+          <section className="demo__panel demo__panel--gallery">
+            <GalleryPanel />
           </section>
         ) : (
           <section className="demo__panel demo__panel--adapter">
