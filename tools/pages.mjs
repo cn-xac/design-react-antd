@@ -25,7 +25,7 @@ const repoRoot = resolve(here, "..");
 const configFile = resolve(repoRoot, "example/vite.config.ts");
 const outDir = resolve(repoRoot, "pages-dist");
 
-const REPO = process.env.PAGES_REPO || "design-react-antd";
+const REPO = process.env.PAGES_REPO || "web-design-react-antd";
 const BASE = `/${REPO}/`;
 
 console.log(`[pages] base    = ${BASE}（覆盖 example/vite.config.ts 的 '/'）`);

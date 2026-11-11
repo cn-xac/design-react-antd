@@ -54,7 +54,7 @@ export function seedPage(): PageSchema {
           {
             id: "n_link",
             component: "ec-link",
-            props: { text: "适配层说明", href: "https://github.com/cn-xac/design-react-antd" },
+            props: { text: "适配层说明", href: "https://github.com/cn-xac/web-design-react-antd" },
           },
         ],
       } as PageSchema["children"][number],

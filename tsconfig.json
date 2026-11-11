@@ -4,12 +4,8 @@
     "baseUrl": ".",
     "paths": {
       "@x-ac/web-design-react-antd": ["src/index.tsx"],
-      // 本地联调：核心仓与 react 引擎仓源码直接参与类型检查，改完立即生效，不依赖 dist
-      "@x-ac/web-design-core": ["../project/packages/core/src/index.ts"],
-      "@x-ac/web-design-react/kit": ["../project/packages/react/src/kit.ts"],
-      "@x-ac/web-design-react/designer": ["../project/packages/react/src/designer.ts"],
-      "@x-ac/web-design-react": ["../project/packages/react/src/index.ts"],
-      // React 本身不带 .d.ts，类型来自 @types/react；这里强制把兄弟仓源码里的
+      // 引擎依赖 @x-ac/web-design-core / @x-ac/web-design-react 的已发布版本（^1.0.0），由 node_modules 解析类型
+      // React 本身不带 .d.ts，类型来自 @types/react；这里强制把本包与引擎依赖里的
       // `import type ... from "react"` 收敛到本仓单一副本，避免两份 @types/react 互不兼容。
       // （与 Vue 版不同：vue 包自带类型，可直指 node_modules/vue）
       "react": ["node_modules/@types/react"],

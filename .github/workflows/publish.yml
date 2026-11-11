@@ -7,10 +7,11 @@
 #     tag 触发不受影响：非 dispatch 事件下 inputs.dry_run 为 null → 真 Publish 照跑。
 #
 # 参考 cn-xac/regex 的 .github/workflows/publish.yml 门禁模式，按本仓布局调整：
-#   - 本包是独立适配包，devDependencies 用 link:../project/packages/{core,react}
-#     指向 cn-xac/web-desgin 源码，故 CI 需把该 monorepo 作为同级目录 checkout。
-#     本仓库 → ext/，monorepo → project/，使 ext/../project 恰好命中 link 路径。
-#     因此所有 run 步骤的 working-directory 都是 ext/，缓存/包管理路径都带 ext/ 前缀。
+#   - 本包是独立适配包，依赖 @x-ac/web-design-core / @x-ac/web-design-react 的已发布版本
+#     （^1.0.0，见 package.json 的 devDependencies / peerDependencies），由 npm 直接安装，
+#     不再需要 checkout 上游 monorepo 源码。
+#   - 本仓库 checkout 到 ext/，所有 run 步骤的 working-directory 都是 ext/，
+#     缓存/包管理路径都带 ext/ 前缀。
 #
 # 可信发布（npm Trusted Publishing，基于 OIDC）：
 #   - 不需要任何 npm secret；GitHub Actions 用 OIDC 临时凭证发布并生成 provenance。
@@ -19,7 +20,9 @@
 #   - 首次发布：可信发布者只能绑定到**已存在的包**，首版必须先手工种一个占位版本
 #     （如 0.0.0），再在 npmjs 登记 Trusted Publisher；之后正式版本由本工作流接管。
 #   - 登记信息必须与本文件完全一致：
-#       owner = cn-xac / repository = design-react-antd / Workflow = publish.yml
+#       owner = cn-xac / repository = web-design-react-antd / Workflow = publish.yml
+#     （仓库改名后，须到 npmjs 重新登记 Trusted Publisher 的 repository 字段，
+#      并确认 GitHub Settings → Environments 的 `npm` 环境名与工作流一致。）
 #     Environment 见下方 `environment: npm`，需与 npmjs 登记的名称、以及
 #     GitHub 仓库 Settings → Environments 里的同名环境一致。
 #
@@ -66,16 +69,7 @@ jobs:
           path: ext
           persist-credentials: false
 
-      - name: "Checkout monorepo (resolves link: deps to @x-ac/web-design-core / design-react)"
-        uses: actions/checkout@v7
-        with:
-          repository: cn-xac/web-desgin
-          path: project
-          persist-credentials: false
-          # 若 web-desgin 为私有仓库，需改用 PAT：
-          # token: ${{ secrets.CI_MONOREPO_PAT }}
-
-      # 两个仓库都 checkout 到子目录，workspace 根没有 package.json；
+      # 本仓库 checkout 到 ext/，workspace 根没有 package.json；
       # 显式指向 ext/package.json 读取 packageManager，否则 action-setup 会报缺 version。
       - name: Install pnpm
         uses: pnpm/action-setup@v6
@@ -93,8 +87,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # 门禁顺序：先 build 再 typecheck/test。本包 typecheck 依赖兄弟仓源码（link:），
-      # 不依赖 core/react 的 dist；但仍先产出库产物，让 verify-dist 能硬校验。
+      # 门禁顺序：先 build 再 typecheck/test。引擎依赖由 npm 安装（已发布版本），
+      # 不依赖上游源码；仍先产出库产物，让 verify-dist 能硬校验。
       - name: Build library
         run: pnpm build
 
@@ -137,7 +131,7 @@ jobs:
         run: pnpm publish --access public --no-git-checks --ignore-scripts --dry-run
 
       # --ignore-scripts：dist 已产出，跳过 prepack 的重复构建，也杜绝发布钩子递归触发 publish。
-      # --no-git-checks：同级 checkout 的 project/ 在本仓视角属未跟踪目录。
+      # --no-git-checks：本仓工作区含构建产物 dist（未跟踪），跳过 git 检查。
       # --provenance：生成来源证明（需 public 仓库 + id-token: write）。
       - name: Publish to npm (trusted publishing, no token)
         if: github.event_name != 'workflow_dispatch' || !inputs.dry_run

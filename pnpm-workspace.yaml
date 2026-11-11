@@ -1,2 +1,5 @@
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@x-ac/web-design-core@1.0.0'
+  - '@x-ac/web-design-react@1.0.0'

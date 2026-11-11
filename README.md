@@ -82,12 +82,12 @@ pnpm test           # 12 个用例（适配包 + 示例 Schema 运行时冒烟�
 pnpm build          # 库产物 dist/
 pnpm verify:dist    # 库产物存在性/非空/d.ts 路径硬校验
 pnpm build:example  # 示例站 example/dist/（base: /）
-pnpm pages:build    # Pages 产物 pages-dist/（base: /design-react-antd/ + 零断链自检）
+pnpm pages:build    # Pages 产物 pages-dist/（base: /web-design-react-antd/ + 零断链自检）
 pnpm check          # 以上全部（含 verify:dist 与 pages:build）
 ```
 
-示例通过 vite alias 直接消费 `src/` 与兄弟仓 `../project/packages/{core,react}/src` 源码，
-改完即刻生效，不依赖任何一方的 `dist`。
+示例通过 vite alias 直接消费 `src/`；引擎依赖 `@x-ac/web-design-core` / `@x-ac/web-design-react`
+的已发布版本（`^1.0.0`，由 node_modules 解析），无需 checkout 上游 monorepo 源码。
 
 ### 构建分包
 
@@ -96,7 +96,7 @@ pnpm check          # 以上全部（含 verify:dist 与 pages:build）
 | chunk | 内容 | 大小 (gzip) |
 | --- | --- | --- |
 | `index` | 适配包 + 示例业务代码 | 23.85 kB (8.55) |
-| `engine` | 兄弟仓 core / react 引擎源码 | 123.98 kB (39.22) |
+| `engine` | 已发布的 @x-ac/web-design-core / @x-ac/web-design-react 依赖（node_modules） | 125.70 kB (39.39) |
 | `vendor-antd` | antd + @rc-component + React 运行时 | 1,256.67 kB (399.13) |
 
 > antd 的 pnpm 虚拟路径里含 `react@`，且 rolldown 会把 React 归入依赖它的 vendor chunk，
@@ -126,26 +126,27 @@ node tools/pages.mjs → configure-pages → upload artifact`。
 引用的文件与 chunk 相对 import 必须真实存在）。`configure-pages` 带 `enablement: true`，
 会自动把 Pages Source 切到 GitHub Actions。
 
-两个工作流都把本仓库 checkout 到 `ext/`、把 `cn-xac/web-desgin` checkout 到 `project/`，
-以解析 devDependencies 里的 `link:../project/packages/*`（本地也是同样的并排布局）。
+两个工作流都把本仓库 checkout 到 `ext/`，依赖 `@x-ac/web-design-core` / `@x-ac/web-design-react`
+的已发布版本（由 `ext/pnpm-lock.yaml` 锁定，npm 直接安装），不再 checkout 上游 monorepo 源码。
 因 workspace 根没有 `package.json`，`pnpm/action-setup` 用 `package_json_file: ext/package.json`
 读取 packageManager，`setup-node` 的缓存路径用 `ext/pnpm-lock.yaml`。
 
 ### 一次性前置条件（需仓库所有者操作）
 
 1. **npm 可信发布**：npmjs.com 包设置 → Publishing access → Add a trusted publisher →
-   GitHub Actions，填 `owner=cn-xac`、`repository=design-react-antd`、`Workflow=publish.yml`。
+   GitHub Actions，填 `owner=cn-xac`、`repository=web-design-react-antd`、`Workflow=publish.yml`。
    - **Environment 名必须与 `publish.yml` 里的 `environment: npm` 一致**，
      并在 GitHub 仓库 Settings → Environments 里建同名 `npm` 环境；
      若 npm 侧登记的是别的名字，需同步改工作流里的 `environment`。
    - 可信发布者只能绑定到**已存在的包**：首版需先手工种一个占位版本（如 `0.0.0`），
      绑定 Trusted Publisher 后正式版本才由工作流接管。
-2. **依赖仓库可见性**：若 `cn-xac/web-desgin` 为私有仓库，需在两个工作流里给
-   monorepo checkout 加 `token: ${{ secrets.CI_MONOREPO_PAT }}`（文件内已留注释）。
+2. **仓库改名后重登 Trusted Publisher**：npmjs 的 Trusted Publisher 绑定的是旧仓库名
+   `design-react-antd`，改名 `web-design-react-antd` 后须到 npmjs 重新登记 `repository`
+   字段，否则 `publish.yml` 的可信发布会因 subject 不匹配而失败。
 3. **发布命令**：tag 由开发者本地按约定执行（`git tag -s v1.0.0 -m "release 1.0.0"` 后推送），
    工作流不建 tag、不 push。
 
-> Pages 地址：`https://cn-xac.github.io/design-react-antd/`。
+> Pages 地址：`https://cn-xac.github.io/web-design-react-antd/`。
 > `example/vite.config.ts` 始终保持 `base: '/'`（本地 dev / `build:example` 用），
 > Pages 子路径由 `tools/pages.mjs` 依 `PAGES_REPO` 注入；仓库改名无需改脚本。
 

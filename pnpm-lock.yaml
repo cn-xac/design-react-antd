@@ -179,11 +179,11 @@ importers:
         specifier: ^6.2.1
         version: 6.2.1(vite@8.3.6(@types/node@22.20.5))
       '@x-ac/web-design-core':
-        specifier: link:../project/packages/core
-        version: link:../project/packages/core
+        specifier: ^1.0.0
+        version: 1.0.0
       '@x-ac/web-design-react':
-        specifier: link:../project/packages/react
-        version: link:../project/packages/react
+        specifier: ^1.0.0
+        version: 1.0.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       antd:
         specifier: ^6.7.0
         version: 6.7.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -751,6 +751,20 @@ packages:
       typescript: <7
     peerDependenciesMeta:
       typescript:
+        optional: true
+
+  '@x-ac/web-design-core@1.0.0':
+    resolution: {integrity: sha512-px6u380LpQdgb91zt7u0lxDtKkFGvPKrMPPyISpxBAIUiWXumjoR00CdBEmtmQRyPIQYMbuFCrVrhwV2NFSojQ==}
+    engines: {node: '>=18'}
+
+  '@x-ac/web-design-react@1.0.0':
+    resolution: {integrity: sha512-QuLdPG0vhqQ+N1AOzDezvD1BUAgve4lCB6qi1wN7FW8Z8/XNeAjadWuLllwyYGwvp2UwO1tNRGHcNkBt80kXfA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      react-dom:
         optional: true
 
   acorn@8.19.0:
@@ -1835,6 +1849,15 @@ snapshots:
       vscode-uri: 3.2.0
     optionalDependencies:
       typescript: 5.9.3
+
+  '@x-ac/web-design-core@1.0.0': {}
+
+  '@x-ac/web-design-react@1.0.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+    dependencies:
+      '@x-ac/web-design-core': 1.0.0
+      react: 19.3.1
+    optionalDependencies:
+      react-dom: 19.3.1(react@19.3.1)
 
   acorn@8.19.0: {}
 

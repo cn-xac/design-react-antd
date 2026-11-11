@@ -1,8 +1,8 @@
 # GitHub Pages 部署工作流（本包自带完整示例站）
 #
 # 参考 cn-xac/regex 的 .github/workflows/pages.yml，按本仓布局调整：
-#   - 本包用 link:../project/packages/{core,react} 依赖兄弟仓源码，
-#     故 CI 并排 checkout：本仓库 → ext/，monorepo → project/。
+#   - 本包依赖 @x-ac/web-design-core / @x-ac/web-design-react 的已发布版本（^1.0.0），
+#     由 npm 安装，不再 checkout 上游 monorepo 源码。
 #     所有 run 步骤 working-directory = ext/，缓存路径带 ext/ 前缀。
 #   - 部署内容由 tools/pages.mjs 构建：复用 example/vite.config.ts 的 alias 与分包，
 #     用 vite build API 覆盖 base=/<repo>/ 输出到 pages-dist/，并做零断链自检
@@ -14,7 +14,7 @@
 #
 # 触发：push main 且 src / example / tools / 工作流 / 锁文件有改动时自动部署；
 #       也支持在 Actions 页面手动 workflow_dispatch 触发。
-# 站点地址：https://cn-xac.github.io/design-react-antd/
+# 站点地址：https://cn-xac.github.io/web-design-react-antd/
 #
 # 注意：本工作流只构建示例站，不构建发布用的库产物，也不发布 npm。
 
@@ -58,16 +58,7 @@ jobs:
           path: ext
           persist-credentials: false
 
-      - name: "Checkout monorepo (resolves link: deps)"
-        uses: actions/checkout@v7
-        with:
-          repository: cn-xac/web-desgin
-          path: project
-          persist-credentials: false
-          # 若 web-desgin 为私有仓库，需改用 PAT：
-          # token: ${{ secrets.CI_MONOREPO_PAT }}
-
-      # 两个仓库都 checkout 到子目录，workspace 根没有 package.json；
+      # 本仓库 checkout 到 ext/，workspace 根没有 package.json；
       # 显式指向 ext/package.json 读取 packageManager，否则 action-setup 会报缺 version。
       - name: Install pnpm
         uses: pnpm/action-setup@v6
