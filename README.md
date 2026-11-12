@@ -1,180 +1,328 @@
 # @x-ac/web-design-react-antd
 
-基于 `@x-ac/web-design-react/kit` 的 **Ant Design 6** 适配包。
+基于 [Ant Design 6](https://ant.design/) 的 **Schema 驱动页面 / 表单** React 适配包。
 
-引擎（`@x-ac/web-design-core` / `@x-ac/web-design-react`）只提供架构：整合已注册的组件，形成设计器与渲染器。
-本包只负责**注册组件与组件配置**，以及引擎自身 UI（属性设置面板等）所用的控件；
-渲染器只消费组件、导出数据、派发事件，不含任何 UI 库知识。
+引擎（`@x-ac/web-design-core` / `@x-ac/web-design-react`）只提供架构：把已注册的组件整合成「设计器」与「渲染器」。
+**本包只做一件事**——把引擎约定的 30 个协议物料（`ec-*`）落地成 antd 组件，并补上设计器属性面板、消息/确认框等宿主能力。
+你给它一份 JSON（`PageSchema`），它就画出一份用 antd 渲染、能收集数据、能派发事件的真实页面。
+
+> 在线示例（设计器 / 渲染器 / 组件实例 / 适配包清单 四个页签）：
+> https://cn-xac.github.io/web-design-react-antd/
+
+---
+
+## 60 秒读懂
+
+- 你**不写**任何 UI 组件代码，只描述「页面长什么样」（`PageSchema`）。
+- 本包把 `ec-input`、`ec-table`、`ec-button` 等协议名翻译成 antd 组件。
+- 表单数据自动按节点 `id` 绑定到 `form.<id>`，无需手写 `onChange`。
+- 想做低代码搭建？直接挂上 `SchemaDesigner`，它和 `SchemaRenderer` 共用同一份 Schema。
+
+---
 
 ## 安装
 
 ```bash
 pnpm add @x-ac/web-design-react-antd antd dayjs
+# 或
+npm i @x-ac/web-design-react-antd antd dayjs
 ```
 
-`@x-ac/web-design-core`、`@x-ac/web-design-react`、`react`、`react-dom` 为 peer 依赖。
-`antd` 需 6.x（原生支持 React 19，`peerDependencies: react >=18`），**不需要**
-`@ant-design/v5-patch-for-react-19`（那是 antd 5 的历史补丁）。
+`@x-ac/web-design-core`、`@x-ac/web-design-react`、`react`、`react-dom` 为 **peer 依赖**，
+npm ≥ 7 / pnpm ≥ 8 会**自动安装** peer，通常无需手动添加（yarn v1 例外，需手动装）。
 
-## 用法
+**antd 需 6.x**：antd 6 原生支持 React 19（`peerDependencies: react >=18`），
+**不需要** `@ant-design/v5-patch-for-react-19`（那是 antd 5 的历史补丁）。
+
+---
+
+## 用法一：只用渲染器（最简）
+
+一份 `PageSchema` 喂给 `SchemaRenderer`，即得到一个可交互、可收集数据的 antd 页面。
 
 ```tsx
+import { ReactDesignProvider, SchemaRenderer } from "@x-ac/web-design-react";
+import { antdAdapter } from "@x-ac/web-design-react-antd";
+import "@x-ac/web-design-react/style.css";
+
+// 这就是「页面长什么样」——纯数据，可来自后端 / 设计器导出
+const page = {
+  schemaVersion: "1.0.0",
+  id: "p1",
+  type: "page",
+  children: [
+    { id: "name", component: "ec-input", props: { label: "姓名", placeholder: "请输入姓名" } },
+    { id: "dept", component: "ec-select", props: { label: "部门", options: "技术中心,产品中心,设计中心" } },
+    {
+      id: "submit",
+      component: "ec-button",
+      props: { text: "提交", type: "primary" },
+      // 点击触发动作（内置 toast / setState / submitForm / confirm / navigate）
+      events: {
+        click: [{ action: "toast", args: { text: "提交成功", type: "success" } }],
+      },
+    },
+  ],
+};
+
+export function App() {
+  return (
+    <ReactDesignProvider adapter={antdAdapter}>
+      {/* data 是初始数据；键必须是 form.<节点id> */}
+      <SchemaRenderer
+        page={page}
+        data={{ form: { name: "张三", dept: "技术中心" } }}
+        onSubmit={(result) => console.log("提交数据", result)}
+      />
+    </ReactDesignProvider>
+  );
+}
+```
+
+> 关键点：**表单控件默认按 `id` 自动绑定**，初始数据写在 `data.form.<id>`；
+> 点击「提交」会校验并触发 `onSubmit`，拿到按绑定路径还原好的嵌套对象。
+
+---
+
+## 用法二：设计器 + 渲染器（共享同一份 Schema）
+
+设计器搭建的 Schema 存进「页面仓储」，渲染器从仓储读取并实时渲染——
+这就是低代码「搭完即所见」的完整闭环。
+
+```tsx
+import { useMemo, useState } from "react";
+import { createMemoryRepository } from "@x-ac/web-design-core";
 import { ReactDesignProvider, SchemaRenderer } from "@x-ac/web-design-react";
 import { SchemaDesigner } from "@x-ac/web-design-react/designer";
 import { antdAdapter, AntdConfigProvider } from "@x-ac/web-design-react-antd";
 import "@x-ac/web-design-react/style.css";
 
-// AntdConfigProvider 可选：让 message / Modal 走 App context，同步 ConfigProvider 主题。
-// 不包裹也能工作，actions 会回落到 antd 静态 API。
+const PAGE_ID = "demo";
+
 export function App() {
+  const repository = useMemo(() => createMemoryRepository(), []);
+  const [schema, setSchema] = useState(null);
+
+  // 设计器保存后，把仓储里的最新 Schema（注意取 .schema）交给渲染器
+  const reloadSchema = () => {
+    const record = repository.get(PAGE_ID);
+    if (record) setSchema(record.schema);
+  };
+
   return (
     <AntdConfigProvider>
       <ReactDesignProvider adapter={antdAdapter}>
-        {/* 渲染器：只消费组件 + 导出数据 + 派发事件 */}
-        <SchemaRenderer page={page} data={data} onNodeEvent={logEvent} onSubmit={save} />
-        {/* 设计器：属性面板、顶栏、物料面板全部使用 antd 控件 */}
-        <SchemaDesigner pageId="p1" repository={repo} />
+        {/* 设计器：属性面板 / 物料面板 / 顶栏全是 antd 组件 */}
+        <SchemaDesigner
+          pageId={PAGE_ID}
+          repository={repository}
+          onSaved={reloadSchema}
+          onPreview={() => console.log("切到渲染器页签预览")}
+        />
+        {/* 渲染器：消费同一份 Schema */}
+        {schema && <SchemaRenderer page={schema} data={{ form: {} }} />}
       </ReactDesignProvider>
     </AntdConfigProvider>
   );
 }
 ```
 
-### 导出
+`AntdConfigProvider` 可选：让消息 / 确认框走 antd 的 `<App>` context（主题同步）。
+不包裹也能工作，动作会自动回落到 antd 静态 API。
 
-| 导出 | 说明 |
+---
+
+## 你能用到什么
+
+### 物料清单（30 个，全部可渲染，无置灰项）
+
+设计器面板里每个物料都能直接用；`missingComponents(antdAdapter)` 恒为 `[]`。
+
+| 分类 | 协议名 `ec-*` | 中文 | 映射 antd | 关键 props |
+| --- | --- | --- | --- | --- |
+| 布局 | `container` | 容器 | `div` | `padding`, `onClick` |
+| 布局 | `grid` | 栅格 | CSS Grid | `columns`(列数) |
+| 布局 | `card` | 卡片 | `Card` | `title`, `extra` |
+| 布局 | `space` | 间距组 | `Space` | — |
+| 展示 | `title` | 标题 | `Typography.Title` | `text`, `level`(1-5) |
+| 展示 | `text` | 文本 | `Typography.Paragraph` | `text`(支持 `{{expr}}`) |
+| 展示 | `divider` | 分割线 | `Divider` | `text`, `dashed` |
+| 展示 | `tag` | 标签 | `Tag` | `text`, `color` |
+| 展示 | `alert` | 提示条 | `Alert` | `type`(info/success/warning/error), `message`, `description` |
+| 展示 | `image` | 图片 | `Image` | `src`, `alt`, `width`, `height`（空 `src` 显示占位） |
+| 展示 | `table` | 表格 | `Table` | `columns`(`[{label,prop}]`), `data`/`rows`, `emptyText` |
+| 表单 | `input` | 输入框 | `Input` | `label`, `placeholder`, `maxlength`, `showCount`, `clearable`, `type` |
+| 表单 | `textarea` | 多行文本 | `Input.TextArea` | `label`, `rows`, `showCount` |
+| 表单 | `number` | 数字输入 | `InputNumber` | `label`, `min`, `max`, `precision`, `step` |
+| 表单 | `select` | 下拉选择 | `Select` | `label`, `options`, `placeholder`, `clearable`, `showSearch`, `mode`(single/multiple/tags) |
+| 表单 | `radio` | 单选框 | `Radio.Group` | `label`, `options` |
+| 表单 | `checkbox` | 多选框 | `Checkbox.Group` | `label`, `options` |
+| 表单 | `switch` | 开关 | `Switch` | `label`, `activeText`, `inactiveText` |
+| 表单 | `date` | 日期选择 | `DatePicker` | `label`, `type`(date/month/daterange/datetime), `valueFormat` |
+| 表单 | `rate` | 评分 | `Rate` | `label`, `count`, `allowHalf` |
+| 表单 | `slider` | 滑块 | `Slider` | `label`, `min`, `max`, `step` |
+| 表单 | `org-picker` | 组织选择 | `Input`(只读占位) | `label`, `placeholder` |
+| 表单 | `dict-select` | 字典下拉 | `Select` | `label`, `options`, `dictKey`, `clearable` |
+| 表单 | `amount-input` | 金额输入 | `InputNumber`(¥) | `label`, `currency`, `precision`, `min`, `max` |
+| 表单 | `segmented` | 分段控制 | `Segmented` | `label`, `options` |
+| 表单 | `color` | 颜色选择 | `ColorPicker` | `label`, `showAlpha` |
+| 表单 | `cascader` | 级联选择 | `Cascader` | `label`, `options`, `clearable` |
+| 表单 | `subform` | 子表单 | 引擎渲染（无需组件） | `label`, `itemPath`, `addText`；`children` 为明细字段 |
+| 交互 | `button` | 按钮 | `Button` | `text`, `type`(primary/default/dashed/text/link/danger), `danger`, `onClick` |
+| 交互 | `link` | 链接 | `Typography.Link` | `text`, `href`, `target` |
+
+> `options` 支持两种写法：逗号字符串 `"A,B,C"` 或数组 `[{ label, value }]`，引擎会自动归一。
+> 业务系统若有专用组织树 / 字典服务，用 `registerMaterials()` 覆盖同名 `ec-org-picker` / `ec-dict-select` 即可。
+
+### 设计器（开箱即用）
+
+`SchemaDesigner` 自带物料面板、拖拽画布、属性设置面板、顶栏（保存 / 预览 / 导出 JSON / HTML）。
+属性面板用的**就是本包注册的 antd 控件**，设计时与运行时同一套 UI 库。
+
+### 动作（Actions）
+
+节点 `events` 里配置，纯数据、不含可执行代码：
+
+| action | 作用 | 关键 args |
+| --- | --- | --- |
+| `toast` | 消息提示 | `{ text, type: info\|success\|warning\|error }` |
+| `setState` | 写 scope | `{ path, value }` |
+| `resetForm` | 重置表单 | `{ path? }`（默认 `form`） |
+| `submitForm` | 校验并提交 | `{ from?, to?, reset?, successText? }` → 触发 `onSubmit` |
+| `confirm` | 确认框 | `{ text, title?, then: [Action...] }`（确认后执行 `then`） |
+| `navigate` | 页面跳转 | `{ to }`（交给宿主 `navigate` prop） |
+
+消息 / 确认框的宿主能力（antd 实现）由本包提供；动作逻辑本身在 core。
+
+---
+
+## 数据绑定规则（重点）
+
+1. **按 id 自动绑定**：未写 `modelValue` 的表单控件，值落在 `data.form.<节点id>`。
+   所以初始数据像 `{ form: { name: "张三" } }`，`name` 就是节点 `id`。
+2. **显式绑定**：写 `props.modelValue = "form.xxx"` 可指定任意 scope 路径。
+3. **子表单**：`ec-subform` 的 `itemPath="orders"`，组内字段绑定 `form.orders[i].<id>`，支持无限嵌套。
+4. **展示类表达式**：`ec-text` / `ec-table` 等可用 `{{path}}` 绑定 scope 变量，
+   例如 `ec-table` 的 `data: "{{list}}"` 或 `ec-text` 的 `text: "{{form.name}}"`。
+
+---
+
+## API 速查
+
+### 本包导出（`@x-ac/web-design-react-antd`）
+
+| 导出 | 类型 | 说明 |
+| --- | --- | --- |
+| `antdAdapter` | `UiAdapter` | 组装好的适配包（组件 + 物料 + 设计器控件 + 动作 + 绑定通道），传给 `ReactDesignProvider` 的 `adapter` |
+| `ANTD_COMPONENTS` | `Record` | `ec-*` → antd 组件映射表 |
+| `antdMaterials` | `Material[]` | 物料元数据（core 27 + antd 专有 3） |
+| `antdDesignerKit` | `DesignerKit` | 设计器 7 个槽位控件 |
+| `antdActionAdapter` / `runActions` | — | 消息与确认框副作用 |
+| `AntdConfigProvider` / `AntdAppBridge` / `setAntdAppContext` | — | 可选的 antd `<App>` context 注入 |
+| `missingComponents` | `(adapter) => string[]` | 检查哪些协议物料没有组件实现（本包恒为 `[]`） |
+
+### 引擎导出（来自 `@x-ac/web-design-react` / `core`）
+
+| 来源 | 导出 | 用途 |
+| --- | --- | --- |
+| `@x-ac/web-design-react` | `ReactDesignProvider`, `SchemaRenderer`, `SchemaRendererHandle`(类型), `createReactDesign` | 渲染上下文与渲染器 |
+| `@x-ac/web-design-react/designer` | `SchemaDesigner`, `SchemaDesignerHandle`(类型) | 设计器 |
+| `@x-ac/web-design-core` | `createMemoryRepository`, `createEmptyPage`, `registerMaterials`, `materialKey`, `validateData`, `exportData`, `getByPath`, `setByPath`, `evaluate` | 仓储 / Schema 构建 / 数据处理 |
+
+### `SchemaRenderer` 常用 props
+
+| prop | 说明 |
 | --- | --- |
-| `antdAdapter` | 组装好的 `UiAdapter`（components + materials + designer + actions + binding） |
-| `ANTD_COMPONENTS` | `ec-*` → antd 组件映射表 |
-| `antdMaterials` | core 通用清单 + antd 专有属性补丁 + 专有物料 |
-| `antdDesignerKit` | 设计器 7 个槽位控件（Button/Input/NumberInput/Select/Switch/Segmented/ColorInput） |
-| `antdActionAdapter` / `runActions` | 消息与确认框副作用 |
-| `AntdConfigProvider` / `AntdAppBridge` / `setAntdAppContext` | 可选的 context 注入 |
+| `page` | `PageSchema` 或 JSON 字符串（自动解析 + 版本迁移） |
+| `data` | 初始 scope（优先于 `page.state`） |
+| `onSubmit` | `submitForm` 校验通过后的回调，拿到还原好的数据对象 |
+| `onDataChange` | scope 每次变化回传（实时数据面板用） |
+| `onEvent` | 事件拦截钩子，返回 `false` 或 `payload.preventDefault()` 可阻断预设动作 |
+| `onNodeEvent` | 只读通知（即使被阻断也会收到，适合埋点） |
+| `adapter` | 只覆盖动作副作用；`ui` 只覆盖适配包；二者缺省取 `ReactDesignProvider` 注入的 |
+| `navigate` | 接管 `navigate` 动作（页面跳转） |
+| `ref` | `SchemaRendererHandle`：`validate()`、`getData()`、`exportData()`、`getErrors()`、`reset()`、`setData()`、`reload()`、`scope` |
 
-### 关键点
+### `SchemaDesigner` 常用 props
 
-- **按组件ID自动绑定**：未写 `modelValue` 的表单控件按 `form.<node.id>` 取值，宿主 `data` 的键必须是完整 node.id。
-- **子表单**：`ec-subform` 由引擎按 `kind` 渲染，无需 UI 库组件实现；组内字段按 `form.<itemPath>[i].<id>` 绑定，理论上无限嵌套。
-- **onChange 归一化**：渲染器把 `onChange` 的第一个参数写回 scope，所以本包所有控件都把 antd 的原生事件翻译成「值」（Input 取 `e.target.value`、DatePicker 取日期字符串、Checkbox.Group 取数组、Switch 取 boolean）。
-- **物料覆盖齐全**：`missingComponents(antdAdapter)` 为 `[]`，设计器面板无置灰项（含 core 的业务语义物料 `ec-org-picker` / `ec-dict-select` / `ec-amount-input`）。
-- 业务系统若有专用组织树 / 字典服务，用 `registerMaterials(antdAdapter, [...])` 覆盖同名实现即可。
+| prop | 说明 |
+| --- | --- |
+| `pageId` | 页面 id，从仓储载入 |
+| `repository` | 页面仓储（`createMemoryRepository` 或自定义实现） |
+| `onSaved` | 保存后回调（id） |
+| `onPreview` | 点「预览」回调（id） |
+| `onExportSchema` | 导出 JSON / HTML 时同步抛出，便于归档 |
+| `previewUrl` / `navigate` / `onBack` | 预览地址、跳转、返回 |
 
-## 本包自包含的完整示例
+---
 
-`example/` 是完整 React 实例，四个页签：
+## 自定义业务物料
 
-- **设计器**：拖拽搭建 Schema，属性面板（输入框 / 下拉 / 开关 / 取色）用 antd 控件配置；
-- **渲染器**：消费同一份 Schema，实时展示 scope、事件派发与提交结果；
-- **组件实例**：全部 30 个物料按分类分组、一行多张小卡（对齐 vue-element-plus 的物料总览版式），
-  每张卡都是走 SchemaRenderer 管线的真实实例；顶部搜索按名称 / ec-* / 分类过滤；
-- **适配包清单**：可视化本包注册了哪些组件、物料、designer kit 槽位，
-  以及 `missingComponents(antdAdapter)` 为空（设计器面板无置灰项），直观印证架构分层。
+用 `registerMaterials` 把你的业务组件组合进适配包，**返回新的 adapter（不改入参）**：
 
-布局为「视口固定、区域内滚」：文档级滚动禁用，页签常驻头部，各区域在自身容器内滚动。
+```tsx
+import { registerMaterials } from "@x-ac/web-design-core";
+import { antdAdapter } from "@x-ac/web-design-react-antd";
 
-预置 Schema（`example/src/schema.ts`）覆盖 **core 全部 27 个协议物料 + 3 个 antd 专有物料**，
-含两级嵌套子表单（订单 → 商品明细）、按组件ID自动绑定、必填校验，以及
-`toast` / `setState` / `confirm` / `resetForm` / `submitForm` 真实动作链。
-渲染器侧演示 `onEvent`（可阻断）、`onNodeEvent`（只读通知）、`onSubmit`（提交回调）、
-`onDataChange`（scope 实时回传）与 `ref.getData()` 命令式导出。
+const adapter = registerMaterials(antdAdapter, [
+  {
+    component: "biz-rate",          // 业务前缀，不要占用 ec- 命名空间
+    title: "满意度",
+    kind: "field",
+    impl: MyBizRate,                // React 组件，受控通道 value/onChange
+    props: { modelValue: "", max: 5 },
+    fields: [{ key: "max", label: "最高分", type: "number" }],
+  },
+]);
+```
+
+组件实现遵循统一约定：用 `value` / `onChange` 受控，把 UI 库原生事件翻译成「值」
+（Input 取 `e.target.value`、Switch 取 `boolean`、DatePicker 取字符串），不要透传原始 event。
+
+---
+
+## 常见问题 / 避坑
+
+- **点预览 / 切换渲染器白屏，控制台 `Cannot read properties of undefined (reading 'map')`**
+  `repository.get()` 返回的是 **`PageRecord`（`{ id, schema, updatedAt }`）**，
+  必须取 `.schema` 再传给 `SchemaRenderer`。把整个 record 当 `page` 会导致 `schema.children` 为 `undefined`。
+- **antd 6 不需要 v5 patch**：不要安装 `@ant-design/v5-patch-for-react-19`。
+- **peer 依赖自动安装**：npm ≥ 7 / pnpm ≥ 8 装本包时会自动装 `core` / `react` / `antd` 等 peer；
+  若用 yarn v1，请手动补装。
+- **不要占用 `ec-` 协议命名空间**：业务物料用 `biz-*` 之类的前缀，否则可能悄悄顶掉官方物料语义。
+- **`options` 两种写法通用**：字符串 `"A,B"` 与数组 `[{label,value}]` 都能用。
+
+---
+
+## 开发 / 构建 / 发布（贡献者）
 
 ```bash
 pnpm install
-pnpm dev            # http://127.0.0.1:5176
+pnpm dev            # 本地示例站 http://127.0.0.1:5176
 pnpm typecheck      # 库 + 示例两轮 tsc
-pnpm test           # 12 个用例（适配包 + 示例 Schema 运行时冒烟）
+pnpm test           # 用例（适配包 + 示例 Schema 运行时冒烟）
 pnpm build          # 库产物 dist/
-pnpm verify:dist    # 库产物存在性/非空/d.ts 路径硬校验
-pnpm build:example  # 示例站 example/dist/（base: /）
-pnpm pages:build    # Pages 产物 pages-dist/（base: /web-design-react-antd/ + 零断链自检）
-pnpm check          # 以上全部（含 verify:dist 与 pages:build）
+pnpm verify:dist    # 库产物存在性 / 非空 / d.ts 路径硬校验
+pnpm check          # 以上全部 + build:example + pages:build
 ```
 
-示例通过 vite alias 直接消费 `src/`；引擎依赖 `@x-ac/web-design-core` / `@x-ac/web-design-react`
-的已发布版本（`^1.0.0`，由 node_modules 解析），无需 checkout 上游 monorepo 源码。
-
-### 构建分包
-
-`example/vite.config.ts` 按变更频率拆 chunk（总字节不变，迭代更新时只重新下载变化的 chunk）：
-
-| chunk | 内容 | 大小 (gzip) |
-| --- | --- | --- |
-| `index` | 适配包 + 示例业务代码 | 23.85 kB (8.55) |
-| `engine` | 已发布的 @x-ac/web-design-core / @x-ac/web-design-react 依赖（node_modules） | 125.70 kB (39.39) |
-| `vendor-antd` | antd + @rc-component + React 运行时 | 1,256.67 kB (399.13) |
-
-> antd 的 pnpm 虚拟路径里含 `react@`，且 rolldown 会把 React 归入依赖它的 vendor chunk，
-> 因此 React 运行时随 antd 一起进 `vendor-antd`，不单独拆 `vendor-react`。
-> 若要把首屏压得更小，后续可对**非首屏的专有物料**（Cascader / ColorPicker / DatePicker 等）
-> 做动态 import，而不是继续切 vendor。
-
-## CI / 部署
-
-工作流模式参考 `cn-xac/regex` 的 `.github/workflows/`，按本仓「独立适配包」布局调整。
+工作流：
 
 | 工作流 | 触发 | 作用 |
 | --- | --- | --- |
 | `publish.yml` | push `v*` tag / 手动（默认 dry_run） | OIDC 可信发布到 npm（免 token，带 provenance） |
 | `pages.yml` | push main / 手动 | 构建示例站并部署到 GitHub Pages |
 
-**发布门禁**（`publish.yml`）：`install → build → verify-dist → typecheck & test →
-tag 与 package.json 版本一致性 → pack 预览 → publish`。
-手动触发默认 `dry_run=true`，只跑门禁 + `publish --dry-run`（除上传 registry 外做尽一切），
-用来验证工作流本身；tag 触发则真发布。publish 带 `--ignore-scripts`（dist 已产出，
-跳过 `prepack` 重复构建）、`--provenance`、`--no-git-checks`。
+> Pages 地址：`https://cn-xac.github.io/web-design-react-antd/`
+> 仓库改名后需到 npmjs 重新登记 Trusted Publisher 的 `repository` 字段（`web-design-react-antd`）。
 
-**Pages 门禁**（`pages.yml`）：`install → build → verify-dist → typecheck & test →
-node tools/pages.mjs → configure-pages → upload artifact`。
-`tools/pages.mjs` 复用 `example/vite.config.ts` 的 alias 与分包，用 vite build API 覆盖
-`base=/<repo>/` 输出到 `pages-dist/`，并做**零断链自检**（绝对路径必须带 base 前缀、
-引用的文件与 chunk 相对 import 必须真实存在）。`configure-pages` 带 `enablement: true`，
-会自动把 Pages Source 切到 GitHub Actions。
+---
 
-两个工作流都把本仓库 checkout 到 `ext/`，依赖 `@x-ac/web-design-core` / `@x-ac/web-design-react`
-的已发布版本（由 `ext/pnpm-lock.yaml` 锁定，npm 直接安装），不再 checkout 上游 monorepo 源码。
-因 workspace 根没有 `package.json`，`pnpm/action-setup` 用 `package_json_file: ext/package.json`
-读取 packageManager，`setup-node` 的缓存路径用 `ext/pnpm-lock.yaml`。
+## 相关链接
 
-### 一次性前置条件（需仓库所有者操作）
-
-1. **npm 可信发布**：npmjs.com 包设置 → Publishing access → Add a trusted publisher →
-   GitHub Actions，填 `owner=cn-xac`、`repository=web-design-react-antd`、`Workflow=publish.yml`。
-   - **Environment 名必须与 `publish.yml` 里的 `environment: npm` 一致**，
-     并在 GitHub 仓库 Settings → Environments 里建同名 `npm` 环境；
-     若 npm 侧登记的是别的名字，需同步改工作流里的 `environment`。
-   - 可信发布者只能绑定到**已存在的包**：首版需先手工种一个占位版本（如 `0.0.0`），
-     绑定 Trusted Publisher 后正式版本才由工作流接管。
-2. **仓库改名后重登 Trusted Publisher**：npmjs 的 Trusted Publisher 绑定的是旧仓库名
-   `design-react-antd`，改名 `web-design-react-antd` 后须到 npmjs 重新登记 `repository`
-   字段，否则 `publish.yml` 的可信发布会因 subject 不匹配而失败。
-3. **发布命令**：tag 由开发者本地按约定执行（`git tag -s v1.0.0 -m "release 1.0.0"` 后推送），
-   工作流不建 tag、不 push。
-
-> Pages 地址：`https://cn-xac.github.io/web-design-react-antd/`。
-> `example/vite.config.ts` 始终保持 `base: '/'`（本地 dev / `build:example` 用），
-> Pages 子路径由 `tools/pages.mjs` 依 `PAGES_REPO` 注入；仓库改名无需改脚本。
-
-## 目录结构
-
-```
-src/
-  index.tsx       组装 adapter 与导出
-  components.tsx  ec-* → antd 组件（含 onChange 归一化）
-  materials.ts    core 清单 + antd 补丁 + 专有物料
-  designer.tsx    完整 designer kit（7 槽位）
-  actions.ts      message / Modal.confirm
-  app.tsx        可选的 App context 注入
-  styles.css      最小补充样式
-example/
-  src/App.tsx        四页签主壳（设计器 / 渲染器 / 组件实例 / 适配包清单）
-  src/schema.ts      预置 PageSchema（全物料 + 嵌套子表单 + 动作链）与种子数据
-  src/GalleryPanel.tsx  组件实例画廊（分类导航 + 搜索 + 真实渲染实例）
-  src/AdapterPanel.tsx  适配包注册清单可视化
-  src/styles.css     示例布局与响应式样式
-  vite.config.ts     alias + 分包策略（base 恒为 /）
-tests/              12 个用例（适配包冒烟 + 示例 Schema 运行时冒烟）
-tools/
-  verify-dist.mjs   库产物硬校验（CI build 后立即跑）
-  pages.mjs         Pages 构建 + 动态 base + 零断链自检
-scripts/            构建前清理 dist
-```
+- 在线示例：https://cn-xac.github.io/web-design-react-antd/
+- 仓库：https://github.com/cn-xac/web-design-react-antd
+- 引擎内核：`@x-ac/web-design-core`
+- React 引擎：`@x-ac/web-design-react`
+- 姊妹适配包（Vue）：`@x-ac/web-design-vue-element-plus`
+- AI 参考文档（机器可读）：见仓库根目录 [`AI.md`](./AI.md)
