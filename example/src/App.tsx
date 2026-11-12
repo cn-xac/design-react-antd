@@ -11,9 +11,10 @@
  *
  * 设计器与渲染器通过内存仓储共享 Schema：设计器保存后渲染器重新读取，
  * 直观看到「设计时搭的 Schema → 运行时画出真实表单」这条链路。
+ * 设计器顶栏「预览」会自动切到渲染器页签并给出提示（onPreview 联动）。
  */
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Segmented, Typography, Button, Empty } from "antd";
+import { Segmented, Typography, Button, Empty, message } from "antd";
 import { createMemoryRepository } from "@x-ac/web-design-core";
 import type { PageSchema, UiEventPayload } from "@x-ac/web-design-core";
 import { ReactDesignProvider, SchemaRenderer } from "@x-ac/web-design-react";
@@ -42,11 +43,26 @@ export default function App() {
 
   const repository = useMemo(() => createMemoryRepository([seedPage()]), []);
 
-  /** 设计器保存 / 导出 Schema 后，把最新 Schema 交给渲染器 */
+  /**
+   * 设计器保存 / 导出 / 预览后，把仓储里的最新 Schema 交给渲染器。
+   * 注意：repository.get() 返回的是 PageRecord（{ id, schema, updatedAt }），
+   * 必须取 .schema —— 整个 record 塞给渲染器会让 schema.children 变 undefined，
+   * SchemaRenderer 的 children.map 直接白屏（此前点「预览」后的空白页就是它）。
+   */
   const reloadSchema = useCallback(() => {
-    const record = repository.get(PAGE_ID);
-    if (record) setSchema(JSON.parse(JSON.stringify(record)) as PageSchema);
+    const schema = repository.get(PAGE_ID)?.schema;
+    if (schema) setSchema(JSON.parse(JSON.stringify(schema)) as PageSchema);
   }, [repository]);
+
+  /**
+   * 设计器顶栏「预览」：其内部流程是先 save()（已触发 onSaved → reloadSchema）
+   * 再回调 onPreview。这里兜底再刷一次、切到渲染器页签并提示。
+   */
+  const handlePreview = useCallback(() => {
+    reloadSchema();
+    setTab("runtime");
+    message.info("已切换到「渲染器」页签，正在预览当前 Schema");
+  }, [reloadSchema]);
 
   const pushEvent = useCallback((line: EventLine) => {
     setEvents((list) => [line, ...list].slice(0, 10));
@@ -135,6 +151,7 @@ export default function App() {
                   repository={repository}
                   onSaved={reloadSchema}
                   onExportSchema={reloadSchema}
+                  onPreview={handlePreview}
                 />
               </ReactDesignProvider>
             </div>
