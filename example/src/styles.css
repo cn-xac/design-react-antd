@@ -31,6 +31,9 @@ body {
   height: 100%;
   gap: 12px;
   padding: 16px 20px 20px;
+  /* 整页水平居中：限制最大宽度，两侧留灰边（body 背景色），避免通栏铺满 */
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .demo__head {
