@@ -18,6 +18,7 @@ import {
   Cascader,
   Checkbox,
   ColorPicker,
+  Col as AntdCol,
   DatePicker,
   Divider,
   Image,
@@ -25,6 +26,7 @@ import {
   InputNumber,
   Radio,
   Rate,
+  Row as AntdRow,
   Segmented,
   Select,
   Slider,
@@ -77,6 +79,47 @@ const Grid = ({ children, style, columns }: AntdControlProps) => {
     </div>
   );
 };
+
+type RowJustify = "start" | "end" | "center" | "space-between" | "space-around" | "space-evenly";
+type RowAlign = "top" | "middle" | "bottom" | "stretch";
+
+/**
+ * 栅格行：core 物料 ec-row，原生由 antd Row 实现。
+ * gutter / gutterVertical 合并为 antd 的 [水平, 垂直] 数组；align=stretch antd 原生支持。
+ */
+const RowBlock = ({ children, style, gutter, gutterVertical, justify, align, wrap }: AntdControlProps) => (
+  <AntdRow
+    gutter={[num(gutter) ?? 0, num(gutterVertical) ?? 0]}
+    justify={str(justify) as RowJustify}
+    align={str(align) as RowAlign}
+    wrap={wrap === undefined ? true : bool(wrap)}
+    style={style}
+  >
+    {children}
+  </AntdRow>
+);
+
+/**
+ * 栅格列：core 物料 ec-col，原生由 antd Col 实现。
+ * span 走 Number(span)（0 表示隐藏，与 antd 语义一致）；响应式断点 0 表示「沿用通用宽度」，归一为 undefined。
+ */
+const ColBlock = ({ children, style, span, offset, order, flex, xs, sm, md, lg, xl, xxl }: AntdControlProps) => (
+  <AntdCol
+    span={Number(span) || 0}
+    offset={Number(offset) || 0}
+    order={num(order) ?? undefined}
+    flex={str(flex) || undefined}
+    xs={num(xs) ?? undefined}
+    sm={num(sm) ?? undefined}
+    md={num(md) ?? undefined}
+    lg={num(lg) ?? undefined}
+    xl={num(xl) ?? undefined}
+    xxl={num(xxl) ?? undefined}
+    style={style}
+  >
+    {children}
+  </AntdCol>
+);
 
 const CardBlock = ({ children, style, title, extra, onClick }: AntdControlProps) => (
   <Card
@@ -451,6 +494,8 @@ const ButtonBlock = ({ children, onClick, disabled, style, type, danger }: AntdC
 export const ANTD_COMPONENTS = prefixedComponents<Control>({
   container: Container,
   grid: Grid,
+  row: RowBlock,
+  col: ColBlock,
   card: CardBlock,
   space: SpaceBlock,
   title: Title,

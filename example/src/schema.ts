@@ -2,7 +2,7 @@
  * 示例预置 Schema：一份 PageSchema 同时喂给设计器与渲染器。
  *
  * 刻意覆盖三类能力，用来证明「引擎只提供架构，适配包只注册组件与配置」：
- * 1. 全部协议物料（27 个 core + 3 个 antd 专有），按布局 / 展示 / 表单分组；
+ * 1. 全部协议物料（29 个 core，含 row / col 统一栅格 + 3 个 antd 专有），按布局 / 展示 / 表单分组；
  * 2. 两级嵌套子表单（订单 → 商品明细），演示理论无限级的明细数组；
  * 3. 真实动作链（toast / setState / resetForm / submitForm）与必填校验。
  *
@@ -137,6 +137,42 @@ export function seedPage(): PageSchema {
         { id: "n_container", component: "ec-container", props: { padding: 8 }, children: [
           { id: "n_nested_text", component: "ec-text", props: { text: "容器内可以放任意子节点" } },
         ] } as PageSchema["children"][number],
+      ]),
+
+      group("g_grid", "栅格布局（row / col，core 通用 24 栅格）", [
+        {
+          id: "n_row_demo",
+          component: "ec-row",
+          props: { gutter: 16, gutterVertical: 16 },
+          children: [
+            {
+              id: "n_col_a",
+              component: "ec-col",
+              props: { span: 12 },
+              children: [{ id: "n_col_a_name", component: "ec-input", props: { label: "左列：姓名" } }],
+            } as PageSchema["children"][number],
+            {
+              id: "n_col_b",
+              component: "ec-col",
+              props: { span: 12 },
+              children: [
+                { id: "n_col_b_dept", component: "ec-select", props: { label: "右列：部门", options: "技术中心,产品中心" } },
+              ],
+            } as PageSchema["children"][number],
+          ],
+        } as PageSchema["children"][number],
+        {
+          id: "n_row_responsive",
+          component: "ec-row",
+          props: { gutter: 8 },
+          children: [
+            {
+              id: "n_col_resp",
+              component: "ec-col",
+              props: { span: 24, xs: 24, sm: 12, md: 8, lg: 6, xl: 4 },
+            },
+          ],
+        } as PageSchema["children"][number],
       ]),
 
       {
